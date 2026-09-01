@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 待辦助手</title>
+    <title>AI 待辦助手 (DeepSeek)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -332,7 +332,7 @@
     <div class="container">
         <h1>
             ✅ 待辦助手
-            <small>AI 解析</small>
+            <small>DeepSeek AI</small>
         </h1>
         <div class="subtitle">
             輸入一句話，AI 自動拆解成 事項 · 分類 · 日期 · 時間
@@ -386,21 +386,20 @@
 
         <!-- API 設定提示 -->
         <div class="api-hint" id="apiHint">
-            ⚙️ 本範例使用 <strong>模擬解析</strong>（無需 API Key）。
-            若要串接真實 Gemini API，請在下方「<a href="#"
-            id="toggleApiConfig">顯示進階設定</a>」中填入金鑰。
+            🧠 目前使用 <strong>DeepSeek API</strong>（金鑰已自動載入）。
+            點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可檢視或更換金鑰。
         </div>
 
         <!-- 進階 API 設定區（預設隱藏） -->
         <div id="apiConfig" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
             <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:6px;">
-                🔑 Gemini API Key
+                🔑 DeepSeek API Key
             </label>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <input
                 type="password"
                 id="apiKeyInput"
-                placeholder="貼上你的 Gemini API Key"
+                placeholder="貼上你的 DeepSeek API Key"
                 style="flex:1;padding:10px 14px;border:2px solid #d1d5db;border-radius:10px;font-size:14px;outline:none;min-width:200px;"
                 />
                 <button class="btn btn-primary" id="saveApiKeyBtn" style="padding:10px 20px;font-size:14px;">
@@ -411,7 +410,7 @@
                 </button>
             </div>
             <div style="font-size:13px;color:#64748b;margin-top:8px;">
-                可至 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#6366f1;">Google AI Studio</a> 免費取得金鑰。
+                可至 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:#6366f1;">DeepSeek 平台</a> 取得金鑰。
                 儲存後會記錄在瀏覽器本地，不會上傳任何伺服器。
             </div>
         </div>
@@ -425,8 +424,8 @@
             let todos = [];
             let nextId = 1;
             let isProcessing = false;
-            let useGemini = false;
-            let geminiApiKey = '';
+            let useDeepSeek = true; // 預設使用 DeepSeek
+            let deepSeekApiKey = 'sk-17d8d1aebfdf49dfa20f3e7a0783574e'; // 您提供的金鑰
 
             // ----- DOM 參照 -----
             const todoInput = document.getElementById('todoInput');
@@ -467,8 +466,8 @@
                     const data = {
                         todos: todos,
                         nextId: nextId,
-                        useGemini: useGemini,
-                        geminiApiKey: geminiApiKey,
+                        useDeepSeek: useDeepSeek,
+                        deepSeekApiKey: deepSeekApiKey,
                     };
                     localStorage.setItem('aiTodoData', JSON.stringify(data));
                 } catch (_) { /* ignore */ }
@@ -482,8 +481,8 @@
                     if (data.todos && Array.isArray(data.todos)) {
                         todos = data.todos;
                         nextId = data.nextId || 1;
-                        useGemini = data.useGemini || false;
-                        geminiApiKey = data.geminiApiKey || '';
+                        useDeepSeek = data.useDeepSeek !== undefined ? data.useDeepSeek : true;
+                        deepSeekApiKey = data.deepSeekApiKey || '';
                         return true;
                     }
                 } catch (_) { /* ignore */ }
@@ -729,69 +728,104 @@
             }
 
             // =============================================================
-            //  【模擬解析】修正：正確支援「2028年10月6日」
+            //  【DeepSeek API 呼叫】
             // =============================================================
+            async function callDeepSeekAPI(text) {
+                if (!deepSeekApiKey) {
+                    throw new Error('尚未設定 DeepSeek API Key');
+                }
+
+                const url = 'https://api.deepseek.com/v1/chat/completions';
+
+                const today = new Date().toISOString().split('T')[0];
+                const systemPrompt =
+                    `你是行政助理，負責從訊息中抽取待辦重點，今天是 ${today}。
+                    規則：
+                    - 日期一律轉成 YYYY-MM-DD；「明天」「下週三」等相對日期依今天推算。
+                    - 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
+                    - category 欄位只能填「繳費」「會議」「其他」三選一。
+                    - 找不到的欄位一律回空字串，不要自行編造內容。
+                    - 只回傳 JSON，不要加任何說明文字。
+                    輸出格式固定為：
+                    {"summary":"","category":"","date":"","time":""}`;
+
+                const payload = {
+                    model: 'deepseek-chat',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: text }
+                    ],
+                    response_format: { type: 'json_object' },
+                    temperature: 0.1,
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + deepSeekApiKey,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`DeepSeek API 請求失敗 (${response.status}): ${errText}`);
+                }
+
+                const data = await response.json();
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                    throw new Error('DeepSeek 回應格式異常');
+                }
+
+                const resultText = data.choices[0].message.content;
+                try {
+                    return JSON.parse(resultText);
+                } catch (_) {
+                    throw new Error('DeepSeek 回傳非 JSON 格式');
+                }
+            }
+
+            // ----- 模擬解析（備用，當 API 失敗或無金鑰時） -----
             function mockParse(text) {
                 let summary = text;
                 let category = '其他';
                 let date = '';
                 let time = '';
 
-                // 分類關鍵字
                 if (/繳費|房租|電費|水費|瓦斯|信用卡|帳單|轉帳|匯款|付款/i.test(text)) {
                     category = '繳費';
                 } else if (/會議|開會|報告|簡報|提案|討論/i.test(text)) {
                     category = '會議';
                 }
 
-                // ---------- 日期解析 ----------
                 const today = new Date();
-                let baseYear = today.getFullYear();
-                let baseMonth = today.getMonth();
-                let baseDay = today.getDate();
-
-                // 1. 提取純年份（如「2028年」）
+                let targetDate = new Date(today);
                 let pureYear = null;
                 const yearMatch = text.match(/(\d{4})\s*年/);
-                if (yearMatch) {
-                    pureYear = parseInt(yearMatch[1]);
-                }
+                if (yearMatch) pureYear = parseInt(yearMatch[1]);
 
-                // 2. 提取月日
-                let month = null;
-                let day = null;
+                let month = null, day = null;
                 const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
                 if (monthDayMatch) {
                     month = parseInt(monthDayMatch[1]) - 1;
                     day = parseInt(monthDayMatch[2]);
                 }
 
-                // 3. 提取年份偏移（明年、後年、X年後）
                 let yearOffset = 0;
                 const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
                 if (yearAfterMatch) {
                     yearOffset = parseInt(yearAfterMatch[1]);
-                } else if (/明年/.test(text)) {
-                    yearOffset = 1;
-                } else if (/後年/.test(text)) {
-                    yearOffset = 2;
-                }
+                } else if (/明年/.test(text)) yearOffset = 1;
+                else if (/後年/.test(text)) yearOffset = 2;
 
-                // 4. 提取天數偏移
                 let dayOffset = 0;
-                if (/今天|今日/.test(text)) {
-                    dayOffset = 0;
-                } else if (/明天|明日/.test(text)) {
-                    dayOffset = 1;
-                } else if (/後天|後日/.test(text)) {
-                    dayOffset = 2;
-                } else if (/大後天/.test(text)) {
-                    dayOffset = 3;
-                } else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) {
-                    dayOffset = 14;
-                }
+                if (/今天|今日/.test(text)) dayOffset = 0;
+                else if (/明天|明日/.test(text)) dayOffset = 1;
+                else if (/後天|後日/.test(text)) dayOffset = 2;
+                else if (/大後天/.test(text)) dayOffset = 3;
+                else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) dayOffset = 14;
 
-                // 5. 提取星期幾
                 let weekOffset = null;
                 const weekMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7, '天': 7 };
                 const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
@@ -811,57 +845,23 @@
                     }
                 }
 
-                // --- 組合日期 ---
-                let targetDate = new Date(today);
-                let dateSet = false;
-
-                // 優先級：純年份（最明確）
                 if (pureYear !== null) {
                     targetDate.setFullYear(pureYear);
-                    // 若有月日則設定
-                    if (month !== null && day !== null) {
-                        targetDate.setMonth(month, day);
-                    }
-                    dateSet = true;
+                    if (month !== null && day !== null) targetDate.setMonth(month, day);
                 } else {
-                    // 沒有純年份，則使用年份偏移
-                    if (yearOffset !== 0) {
-                        targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
-                    }
-                    // 若有月日則設定
-                    if (month !== null && day !== null) {
-                        targetDate.setMonth(month, day);
-                    }
-                    // 若有星期幾，則覆蓋天數偏移
+                    if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                    if (month !== null && day !== null) targetDate.setMonth(month, day);
                     if (weekOffset !== null) {
                         targetDate = new Date(today);
                         targetDate.setDate(today.getDate() + weekOffset);
-                        if (yearOffset !== 0) {
-                            targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
-                        }
-                        dateSet = true;
+                        if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                     } else if (dayOffset !== 0) {
-                        // 只有天數偏移，且沒有月日（若有月日則忽略天數偏移）
                         if (month === null || day === null) {
                             targetDate = new Date(today);
                             targetDate.setDate(today.getDate() + dayOffset);
-                            if (yearOffset !== 0) {
-                                targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
-                            }
-                            dateSet = true;
-                        } else {
-                            // 有月日，忽略天數偏移，但已設定月日
-                            dateSet = true;
+                            if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                         }
-                    } else {
-                        // 什麼都沒有，預設今天
-                        dateSet = true; // 保留targetDate為今天
                     }
-                }
-
-                // 如果 dateSet 為 false（極少數情況），則預設今天
-                if (!dateSet) {
-                    targetDate = new Date(today);
                 }
 
                 const y = targetDate.getFullYear();
@@ -869,28 +869,20 @@
                 const d = String(targetDate.getDate()).padStart(2, '0');
                 date = y + '-' + m + '-' + d;
 
-                // ---------- 時間解析（支援中文數字與「半」） ----------
+                // 時間解析
                 function chineseToNum(ch) {
-                    const map = {
-                        '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
-                        '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
-                        '十': 10, '十一': 11, '十二': 12
-                    };
+                    const map = { '零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12 };
                     return map[ch] !== undefined ? map[ch] : parseInt(ch);
                 }
-
-                // 先嘗試標準格式 HH:MM 或 HH.MM
                 const t1 = text.match(/(\d{1,2})[:.](\d{2})/);
                 if (t1) {
                     time = String(t1[1]).padStart(2, '0') + ':' + t1[2];
                 } else {
-                    // 嘗試「X點」或「X點半」
                     const pointMatch = text.match(/([一二三四五六七八九十十一十二零\d]+)\s*點\s*(半)?/);
                     if (pointMatch) {
                         let hour = chineseToNum(pointMatch[1]);
                         let minute = 0;
                         if (pointMatch[2] === '半') minute = 30;
-                        // 處理上午/下午
                         if (text.includes('下午') || text.includes('晚上') || text.includes('傍晚')) {
                             if (hour < 12) hour += 12;
                         } else if (text.includes('凌晨') && hour === 12) {
@@ -905,65 +897,6 @@
                 }
 
                 return { summary, category, date, time };
-            }
-
-            // ----- 呼叫 Gemini API（真實） -----
-            async function callGeminiAPI(text) {
-                if (!geminiApiKey) {
-                    throw new Error('尚未設定 Gemini API Key');
-                }
-
-                const url =
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
-
-                const today = new Date().toISOString().split('T')[0];
-                const systemPrompt =
-                    `你是行政助理，負責從訊息中抽取待辦重點，今天是 ${today}。
-                    規則：
-                    - 日期一律轉成 YYYY-MM-DD；「明天」「下週三」等相對日期依今天推算。
-                    - 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
-                    - category 欄位只能填「繳費」「會議」「其他」三選一。
-                    - 找不到的欄位一律回空字串，不要自行編造內容。
-                    - 只回傳 JSON，不要加任何說明文字。
-                    輸出格式固定為：
-                    {"summary":"","category":"","date":"","time":""}`;
-
-                const payload = {
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    },
-                    contents: [{
-                        parts: [{ text: text }]
-                    }],
-                    generationConfig: {
-                        responseMimeType: 'application/json'
-                    }
-                };
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                });
-
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`API 請求失敗 (${response.status}): ${errText}`);
-                }
-
-                const data = await response.json();
-                if (!data.candidates || !data.candidates[0]) {
-                    throw new Error('Gemini 無回應');
-                }
-
-                const resultText = data.candidates[0].content.parts[0].text;
-                try {
-                    return JSON.parse(resultText);
-                } catch (_) {
-                    throw new Error('Gemini 回傳非 JSON 格式');
-                }
             }
 
             // ----- 主要處理流程 -----
@@ -982,8 +915,14 @@
 
                 try {
                     let parsed;
-                    if (useGemini && geminiApiKey) {
-                        parsed = await callGeminiAPI(rawText);
+                    if (useDeepSeek && deepSeekApiKey) {
+                        try {
+                            parsed = await callDeepSeekAPI(rawText);
+                        } catch (apiError) {
+                            console.warn('DeepSeek API 失敗，改用模擬解析:', apiError);
+                            setStatus('⚠️ API 呼叫失敗，改用模擬解析', true);
+                            parsed = mockParse(rawText);
+                        }
                     } else {
                         parsed = mockParse(rawText);
                     }
@@ -997,7 +936,7 @@
                     todoInput.value = '';
                     todoInput.focus();
 
-                    const mode = (useGemini && geminiApiKey) ? '🧠 Gemini' : '🔧 模擬';
+                    const mode = (useDeepSeek && deepSeekApiKey) ? '🧠 DeepSeek' : '🔧 模擬';
                     setStatus(`✅ 已新增！(${mode}) 事項：${summary}`);
                 } catch (err) {
                     console.error(err);
@@ -1034,28 +973,26 @@
 
             // ----- 初始化 API 設定 -----
             function initApiConfig() {
-                const saved = localStorage.getItem('aiTodoData');
-                if (saved) {
-                    try {
-                        const data = JSON.parse(saved);
-                        if (data.geminiApiKey) {
-                            geminiApiKey = data.geminiApiKey;
-                            useGemini = data.useGemini || false;
-                            apiKeyInput.value = geminiApiKey;
-                            updateApiHint();
-                        }
-                    } catch (_) { /* ignore */ }
+                // 載入 localStorage，如果有金鑰則使用，否則使用預設金鑰
+                const loaded = loadFromLocal();
+                if (!loaded) {
+                    // 若無儲存，則儲存預設金鑰
+                    saveToLocal();
                 }
+                // 顯示金鑰（隱藏）
+                apiKeyInput.value = deepSeekApiKey;
+                updateApiHint();
             }
 
             function updateApiHint() {
-                if (useGemini && geminiApiKey) {
+                if (useDeepSeek && deepSeekApiKey) {
                     apiHint.innerHTML =
-                        `🧠 目前使用 <strong>真實 Gemini API</strong>（已設定金鑰）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
+                        `🧠 目前使用 <strong>DeepSeek API</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
                 } else {
                     apiHint.innerHTML =
-                        `⚙️ 本範例使用 <strong>模擬解析</strong>（無需 API Key）。若要串接真實 Gemini API，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
+                        `⚙️ 目前使用 <strong>模擬解析</strong>（無 API 金鑰）。若要啟用 DeepSeek，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
                 }
+                // 重新綁定事件
                 document.getElementById('toggleApiConfig')?.addEventListener('click', function(e) {
                     e.preventDefault();
                     apiConfig.style.display = apiConfig.style.display === 'none' ? 'block' : 'none';
@@ -1069,17 +1006,17 @@
                     setStatus('⚠️ 請先貼上 API Key', true);
                     return;
                 }
-                geminiApiKey = key;
-                useGemini = true;
+                deepSeekApiKey = key;
+                useDeepSeek = true;
                 saveToLocal();
                 updateApiHint();
                 apiConfig.style.display = 'none';
-                setStatus('✅ Gemini API Key 已儲存（本地）');
+                setStatus('✅ DeepSeek API Key 已儲存（本地）');
             }
 
             function clearApiKey() {
-                geminiApiKey = '';
-                useGemini = false;
+                deepSeekApiKey = '';
+                useDeepSeek = false;
                 apiKeyInput.value = '';
                 saveToLocal();
                 updateApiHint();
@@ -1119,21 +1056,18 @@
             });
 
             // ----- 啟動 -----
-            const loaded = loadFromLocal();
-            if (loaded) {
-                if (geminiApiKey) {
-                    apiKeyInput.value = geminiApiKey;
-                }
-                updateApiHint();
-                render();
-                setStatus(`📂 已載入 ${todos.length} 項待辦`);
-            } else {
+            initApiConfig();
+
+            // 若無待辦事項，建立預設範例
+            if (todos.length === 0) {
                 addTodo('明天早上十點交房租', '繳費', '2026-09-02', '10:00');
                 addTodo('下週三下午三點開會', '會議', '2026-09-09', '15:00');
                 setStatus('👋 歡迎！已為你建立兩筆範例');
+            } else {
+                render();
+                setStatus(`📂 已載入 ${todos.length} 項待辦`);
             }
 
-            initApiConfig();
             todoInput.focus();
         })();
     </script>
