@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 待辦助手</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 720px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+            padding: 32px 28px;
+            transition: all 0.2s ease;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        h1 small {
+            font-size: 14px;
+            font-weight: 400;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+        .subtitle {
+            color: #64748b;
+            font-size: 15px;
+            border-left: 4px solid #818cf8;
+            padding-left: 14px;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.2s, box-shadow 0.2s;
+            background: #f8fafc;
+        }
+        .input-row input:focus {
+            border-color: #818cf8;
+            box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
+            background: #ffffff;
+        }
+        .input-row input::placeholder {
+            color: #94a3b8;
+        }
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: #818cf8;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #6366f1;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(129, 140, 248, 0.35);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+        .btn-success {
+            background: #a7f3d0;
+            color: #065f46;
+        }
+        .btn-success:hover {
+            background: #6ee7b7;
+        }
+        .btn-danger {
+            background: #fecaca;
+            color: #b91c1c;
+        }
+        .btn-danger:hover {
+            background: #fca5a5;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #64748b;
+            min-height: 28px;
+            flex-wrap: wrap;
+        }
+        .status-bar .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #818cf8;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        .status-bar .spinner.active {
+            display: inline-block;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .todo-list {
+            margin-top: 16px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid #eef2f6;
+        }
+        .todo-header {
+            display: grid;
+            grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr;
+            background: #f1f4f9;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #475569;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .todo-item {
+            display: grid;
+            grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr;
+            padding: 14px 16px;
+            background: #ffffff;
+            border-bottom: 1px solid #f1f5f9;
+            align-items: center;
+            font-size: 15px;
+            transition: background 0.15s;
+            gap: 4px;
+        }
+        .todo-item:last-child {
+            border-bottom: none;
+        }
+        .todo-item:hover {
+            background: #fafbff;
+        }
+        .todo-item .summary {
+            font-weight: 500;
+            color: #0f172a;
+            word-break: break-word;
+        }
+        .todo-item .category {
+            font-size: 13px;
+            background: #eef2ff;
+            color: #4338ca;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            text-align: center;
+            width: fit-content;
+        }
+        .todo-item .date,
+        .todo-item .time {
+            color: #334155;
+            font-feature-settings: "tnum";
+        }
+        .todo-item .cal-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            color: #0ea5e9;
+            justify-self: center;
+        }
+        .todo-item .cal-btn:hover {
+            background: #e0f2fe;
+        }
+        .todo-item .delete-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+            transition: color 0.2s;
+            padding: 4px 6px;
+            border-radius: 8px;
+            justify-self: end;
+        }
+        .todo-item .delete-btn:hover {
+            color: #ef4444;
+            background: #fef2f2;
+        }
+        .empty-state {
+            padding: 48px 20px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 15px;
+        }
+        .empty-state span {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .footer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 18px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .count-badge {
+            font-size: 14px;
+            color: #64748b;
+        }
+        .count-badge strong {
+            color: #1e293b;
+        }
+        .api-hint {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 14px;
+            padding: 14px 18px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px dashed #d1d5db;
+            line-height: 1.7;
+        }
+        .api-hint code {
+            background: #eef2f6;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1e293b;
+        }
+        .api-hint a {
+            color: #6366f1;
+            text-decoration: none;
+        }
+        .api-hint a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .input-row {
+                flex-direction: column;
+            }
+            .todo-header {
+                display: none;
+            }
+            .todo-item {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px 12px;
+                padding: 16px;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            .todo-item .summary {
+                width: 100%;
+                font-size: 16px;
+                margin-bottom: 4px;
+            }
+            .todo-item .category {
+                font-size: 12px;
+            }
+            .todo-item .date,
+            .todo-item .time {
+                font-size: 14px;
+            }
+            .todo-item .cal-btn {
+                margin-left: auto;
+                font-size: 20px;
+            }
+            .todo-item .delete-btn {
+                margin-left: 0;
+            }
+            .footer-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>
+            ✅ 待辦助手
+            <small>AI 解析</small>
+        </h1>
+        <div class="subtitle">
+            輸入一句話，AI 自動拆解成 事項 · 分類 · 日期 · 時間
+        </div>
+
+        <!-- 輸入區 -->
+        <div class="input-area">
+            <div class="input-row">
+                <input
+                type="text"
+                id="todoInput"
+                placeholder="例如：明天早上十點要交房租"
+                autofocus
+                />
+                <button class="btn btn-primary" id="addBtn">➕ 新增</button>
+            </div>
+            <div class="status-bar">
+                <span class="spinner" id="spinner"></span>
+                <span id="statusMsg">💡 輸入待辦事項，AI 會自動判讀</span>
+            </div>
+        </div>
+
+        <!-- 待辦清單 -->
+        <div class="todo-list" id="todoListContainer">
+            <div class="todo-header">
+                <span>事項</span>
+                <span>分類</span>
+                <span>日期</span>
+                <span>時間</span>
+                <span style="text-align:center;">📅 日曆</span>
+                <span></span>
+            </div>
+            <div id="todoItems">
+                <div class="empty-state">
+                    <span>📋</span>
+                    還沒有待辦事項<br />
+                    <span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部操作列 -->
+        <div class="footer-actions">
+            <span class="count-badge">共 <strong id="todoCount">0</strong> 項</span>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-success" id="exportAllBtn">📅 匯出全部</button>
+                <button class="btn btn-secondary" id="clearBtn">🗑️ 清空全部</button>
+                <button class="btn btn-secondary" id="demoBtn">🧪 填入範例</button>
+            </div>
+        </div>
+
+        <!-- API 設定提示 -->
+        <div class="api-hint" id="apiHint">
+            ⚙️ 本範例使用 <strong>模擬解析</strong>（無需 API Key）。
+            若要串接真實 Gemini API，請在下方「<a href="#"
+            id="toggleApiConfig">顯示進階設定</a>」中填入金鑰。
+        </div>
+
+        <!-- 進階 API 設定區（預設隱藏） -->
+        <div id="apiConfig" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
+            <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:6px;">
+                🔑 Gemini API Key
+            </label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <input
+                type="password"
+                id="apiKeyInput"
+                placeholder="貼上你的 Gemini API Key"
+                style="flex:1;padding:10px 14px;border:2px solid #d1d5db;border-radius:10px;font-size:14px;outline:none;min-width:200px;"
+                />
+                <button class="btn btn-primary" id="saveApiKeyBtn" style="padding:10px 20px;font-size:14px;">
+                    💾 儲存
+                </button>
+                <button class="btn btn-secondary" id="clearApiKeyBtn" style="padding:10px 20px;font-size:14px;">
+                    清除
+                </button>
+            </div>
+            <div style="font-size:13px;color:#64748b;margin-top:8px;">
+                可至 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#6366f1;">Google AI Studio</a> 免費取得金鑰。
+                儲存後會記錄在瀏覽器本地，不會上傳任何伺服器。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ----- 狀態 -----
+            let todos = [];
+            let nextId = 1;
+            let isProcessing = false;
+            let useGemini = false;
+            let geminiApiKey = '';
+
+            // ----- DOM 參照 -----
+            const todoInput = document.getElementById('todoInput');
+            const addBtn = document.getElementById('addBtn');
+            const todoItems = document.getElementById('todoItems');
+            const todoCount = document.getElementById('todoCount');
+            const statusMsg = document.getElementById('statusMsg');
+            const spinner = document.getElementById('spinner');
+            const clearBtn = document.getElementById('clearBtn');
+            const demoBtn = document.getElementById('demoBtn');
+            const exportAllBtn = document.getElementById('exportAllBtn');
+            const apiHint = document.getElementById('apiHint');
+            const toggleApiConfig = document.getElementById('toggleApiConfig');
+            const apiConfig = document.getElementById('apiConfig');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+            const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
+
+            // ----- 輔助函式 -----
+            function setStatus(msg, isError = false) {
+                statusMsg.textContent = msg;
+                statusMsg.style.color = isError ? '#b91c1c' : '#64748b';
+            }
+
+            function setLoading(loading) {
+                isProcessing = loading;
+                addBtn.disabled = loading;
+                if (loading) {
+                    spinner.classList.add('active');
+                } else {
+                    spinner.classList.remove('active');
+                }
+            }
+
+            // ----- 儲存 / 載入 localStorage -----
+            function saveToLocal() {
+                try {
+                    const data = {
+                        todos: todos,
+                        nextId: nextId,
+                        useGemini: useGemini,
+                        geminiApiKey: geminiApiKey,
+                    };
+                    localStorage.setItem('aiTodoData', JSON.stringify(data));
+                } catch (_) { /* ignore */ }
+            }
+
+            function loadFromLocal() {
+                try {
+                    const raw = localStorage.getItem('aiTodoData');
+                    if (!raw) return false;
+                    const data = JSON.parse(raw);
+                    if (data.todos && Array.isArray(data.todos)) {
+                        todos = data.todos;
+                        nextId = data.nextId || 1;
+                        useGemini = data.useGemini || false;
+                        geminiApiKey = data.geminiApiKey || '';
+                        return true;
+                    }
+                } catch (_) { /* ignore */ }
+                return false;
+            }
+
+            // ----- 渲染待辦清單 -----
+            function render() {
+                todoItems.innerHTML = '';
+
+                if (todos.length === 0) {
+                    todoItems.innerHTML = `
+                        <div class="empty-state">
+                            <span>📋</span>
+                            還沒有待辦事項<br />
+                            <span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span>
+                        </div>
+                    `;
+                    todoCount.textContent = '0';
+                    return;
+                }
+
+                const sorted = [...todos].sort((a, b) => b.createdAt - a.createdAt);
+
+                for (const item of sorted) {
+                    const div = document.createElement('div');
+                    div.className = 'todo-item';
+                    div.dataset.id = item.id;
+
+                    const categoryLabel = item.category || '其他';
+                    const categoryColors = {
+                        '繳費': '#eef2ff',
+                        '會議': '#d1fae5',
+                        '其他': '#f3f4f6',
+                    };
+                    const categoryTextColors = {
+                        '繳費': '#4338ca',
+                        '會議': '#065f46',
+                        '其他': '#4b5563',
+                    };
+                    const bg = categoryColors[categoryLabel] || '#f3f4f6';
+                    const textColor = categoryTextColors[categoryLabel] || '#4b5563';
+
+                    div.innerHTML = `
+                        <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
+                        <span class="category" style="background:${bg};color:${textColor};">${escapeHtml(categoryLabel)}</span>
+                        <span class="date">${escapeHtml(item.date || '—')}</span>
+                        <span class="time">${escapeHtml(item.time || '—')}</span>
+                        <button class="cal-btn" data-id="${item.id}" title="加入行事曆">📅</button>
+                        <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
+                    `;
+
+                    // 刪除事件
+                    const delBtn = div.querySelector('.delete-btn');
+                    delBtn.addEventListener('click', function(e) {
+                        const id = Number(this.dataset.id);
+                        deleteTodo(id);
+                    });
+
+                    // 日曆事件
+                    const calBtn = div.querySelector('.cal-btn');
+                    calBtn.addEventListener('click', function(e) {
+                        const id = Number(this.dataset.id);
+                        const todo = todos.find(t => t.id === id);
+                        if (todo) {
+                            exportSingleTodo(todo);
+                        }
+                    });
+
+                    todoItems.appendChild(div);
+                }
+
+                todoCount.textContent = todos.length;
+                saveToLocal();
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;',
+                };
+                return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+            }
+
+            // ----- 新增待辦 -----
+            function addTodo(summary, category, date, time) {
+                const todo = {
+                    id: nextId++,
+                    summary: summary.trim() || '（無標題）',
+                    category: category || '其他',
+                    date: date || '',
+                    time: time || '',
+                    createdAt: Date.now(),
+                };
+                todos.push(todo);
+                render();
+                return todo;
+            }
+
+            // ----- 刪除待辦 -----
+            function deleteTodo(id) {
+                todos = todos.filter(t => t.id !== id);
+                render();
+                setStatus('🗑️ 已刪除一項');
+            }
+
+            // ----- 清空全部 -----
+            function clearAll() {
+                if (todos.length === 0) return;
+                if (confirm('確定要刪除所有待辦事項嗎？')) {
+                    todos = [];
+                    render();
+                    setStatus('🧹 已清空全部');
+                }
+            }
+
+            // =============================================================
+            //  【行事曆匯出功能】
+            // =============================================================
+
+            function generateIcsEvent(todo) {
+                let startDate, endDate;
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+
+                if (todo.date) {
+                    const dateParts = todo.date.split('-');
+                    if (dateParts.length === 3) {
+                        const y = dateParts[0];
+                        const m = dateParts[1];
+                        const d = dateParts[2];
+                        if (todo.time) {
+                            const timeParts = todo.time.split(':');
+                            if (timeParts.length === 2) {
+                                const h = timeParts[0];
+                                const min = timeParts[1];
+                                const dtStart = y + m + d + 'T' + h + min + '00';
+                                let endHour = parseInt(h) + 1;
+                                let endMin = min;
+                                if (endHour >= 24) { endHour -= 24; }
+                                const dtEnd = y + m + d + 'T' + String(endHour).padStart(2, '0') + endMin + '00';
+                                return { start: dtStart, end: dtEnd, allDay: false };
+                            }
+                        }
+                        return { start: y + m + d, end: y + m + d, allDay: true };
+                    }
+                }
+                const todayStr = year + month + day;
+                return { start: todayStr, end: todayStr, allDay: true };
+            }
+
+            function buildIcsForTodo(todo) {
+                const dt = generateIcsEvent(todo);
+                const summary = todo.summary || '待辦事項';
+                const uid = 'todo-' + todo.id + '-' + Date.now() + '@aitodo';
+                let ics = 'BEGIN:VCALENDAR\r\n';
+                ics += 'VERSION:2.0\r\n';
+                ics += 'PRODID:-//AI待辦助手//iCalendar 1.0//ZH-TW\r\n';
+                ics += 'BEGIN:VEVENT\r\n';
+                ics += 'UID:' + uid + '\r\n';
+                ics += 'SUMMARY:' + summary + '\r\n';
+                if (dt.allDay) {
+                    ics += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
+                    const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                    const endStr = endDate.getFullYear() + 
+                                  String(endDate.getMonth()+1).padStart(2,'0') + 
+                                  String(endDate.getDate()).padStart(2,'0');
+                    ics += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
+                } else {
+                    ics += 'DTSTART:' + dt.start + '\r\n';
+                    ics += 'DTEND:' + dt.end + '\r\n';
+                }
+                ics += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\n';
+                ics += 'END:VEVENT\r\n';
+                ics += 'END:VCALENDAR';
+                return ics;
+            }
+
+            function downloadIcs(filename, content) {
+                const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename.endsWith('.ics') ? filename : filename + '.ics';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            }
+
+            function exportSingleTodo(todo) {
+                try {
+                    const ics = buildIcsForTodo(todo);
+                    const safeName = todo.summary.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 30);
+                    downloadIcs(safeName + '.ics', ics);
+                    setStatus('📅 已匯出「' + todo.summary + '」至行事曆檔案');
+                } catch (e) {
+                    setStatus('⚠️ 匯出失敗：' + e.message, true);
+                }
+            }
+
+            function exportAllTodos() {
+                if (todos.length === 0) {
+                    setStatus('⚠️ 沒有待辦事項可匯出', true);
+                    return;
+                }
+                try {
+                    let allIcs = 'BEGIN:VCALENDAR\r\n';
+                    allIcs += 'VERSION:2.0\r\n';
+                    allIcs += 'PRODID:-//AI待辦助手//iCalendar 1.0//ZH-TW\r\n';
+                    for (const todo of todos) {
+                        const dt = generateIcsEvent(todo);
+                        const summary = todo.summary || '待辦事項';
+                        const uid = 'todo-' + todo.id + '-' + Date.now() + '@aitodo';
+                        allIcs += 'BEGIN:VEVENT\r\n';
+                        allIcs += 'UID:' + uid + '\r\n';
+                        allIcs += 'SUMMARY:' + summary + '\r\n';
+                        if (dt.allDay) {
+                            allIcs += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
+                            const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                            const endStr = endDate.getFullYear() + 
+                                          String(endDate.getMonth()+1).padStart(2,'0') + 
+                                          String(endDate.getDate()).padStart(2,'0');
+                            allIcs += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
+                        } else {
+                            allIcs += 'DTSTART:' + dt.start + '\r\n';
+                            allIcs += 'DTEND:' + dt.end + '\r\n';
+                        }
+                        allIcs += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\n';
+                        allIcs += 'END:VEVENT\r\n';
+                    }
+                    allIcs += 'END:VCALENDAR';
+                    downloadIcs('我的待辦事項.ics', allIcs);
+                    setStatus('📅 已匯出全部 ' + todos.length + ' 項待辦至行事曆檔案');
+                } catch (e) {
+                    setStatus('⚠️ 匯出全部失敗：' + e.message, true);
+                }
+            }
+
+            // =============================================================
+            //  【模擬解析】修正：正確支援「2028年10月6日」
+            // =============================================================
+            function mockParse(text) {
+                let summary = text;
+                let category = '其他';
+                let date = '';
+                let time = '';
+
+                // 分類關鍵字
+                if (/繳費|房租|電費|水費|瓦斯|信用卡|帳單|轉帳|匯款|付款/i.test(text)) {
+                    category = '繳費';
+                } else if (/會議|開會|報告|簡報|提案|討論/i.test(text)) {
+                    category = '會議';
+                }
+
+                // ---------- 日期解析 ----------
+                const today = new Date();
+                let baseYear = today.getFullYear();
+                let baseMonth = today.getMonth();
+                let baseDay = today.getDate();
+
+                // 1. 提取純年份（如「2028年」）
+                let pureYear = null;
+                const yearMatch = text.match(/(\d{4})\s*年/);
+                if (yearMatch) {
+                    pureYear = parseInt(yearMatch[1]);
+                }
+
+                // 2. 提取月日
+                let month = null;
+                let day = null;
+                const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
+                if (monthDayMatch) {
+                    month = parseInt(monthDayMatch[1]) - 1;
+                    day = parseInt(monthDayMatch[2]);
+                }
+
+                // 3. 提取年份偏移（明年、後年、X年後）
+                let yearOffset = 0;
+                const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
+                if (yearAfterMatch) {
+                    yearOffset = parseInt(yearAfterMatch[1]);
+                } else if (/明年/.test(text)) {
+                    yearOffset = 1;
+                } else if (/後年/.test(text)) {
+                    yearOffset = 2;
+                }
+
+                // 4. 提取天數偏移
+                let dayOffset = 0;
+                if (/今天|今日/.test(text)) {
+                    dayOffset = 0;
+                } else if (/明天|明日/.test(text)) {
+                    dayOffset = 1;
+                } else if (/後天|後日/.test(text)) {
+                    dayOffset = 2;
+                } else if (/大後天/.test(text)) {
+                    dayOffset = 3;
+                } else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) {
+                    dayOffset = 14;
+                }
+
+                // 5. 提取星期幾
+                let weekOffset = null;
+                const weekMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7, '天': 7 };
+                const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
+                const weekMatch = text.match(weekRegex);
+                if (weekMatch) {
+                    const prefix1 = weekMatch[1];
+                    const prefix2 = weekMatch[2];
+                    const dayNum = weekMap[weekMatch[3]];
+                    if (dayNum) {
+                        let currentDay = today.getDay();
+                        let targetDay = dayNum % 7;
+                        let diff = targetDay - currentDay;
+                        if (prefix1 === '下') diff += 7;
+                        else if (prefix1 === '上') diff -= 7;
+                        if (prefix2 === '下') diff += 7;
+                        weekOffset = diff;
+                    }
+                }
+
+                // --- 組合日期 ---
+                let targetDate = new Date(today);
+                let dateSet = false;
+
+                // 優先級：純年份（最明確）
+                if (pureYear !== null) {
+                    targetDate.setFullYear(pureYear);
+                    // 若有月日則設定
+                    if (month !== null && day !== null) {
+                        targetDate.setMonth(month, day);
+                    }
+                    dateSet = true;
+                } else {
+                    // 沒有純年份，則使用年份偏移
+                    if (yearOffset !== 0) {
+                        targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                    }
+                    // 若有月日則設定
+                    if (month !== null && day !== null) {
+                        targetDate.setMonth(month, day);
+                    }
+                    // 若有星期幾，則覆蓋天數偏移
+                    if (weekOffset !== null) {
+                        targetDate = new Date(today);
+                        targetDate.setDate(today.getDate() + weekOffset);
+                        if (yearOffset !== 0) {
+                            targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                        }
+                        dateSet = true;
+                    } else if (dayOffset !== 0) {
+                        // 只有天數偏移，且沒有月日（若有月日則忽略天數偏移）
+                        if (month === null || day === null) {
+                            targetDate = new Date(today);
+                            targetDate.setDate(today.getDate() + dayOffset);
+                            if (yearOffset !== 0) {
+                                targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                            }
+                            dateSet = true;
+                        } else {
+                            // 有月日，忽略天數偏移，但已設定月日
+                            dateSet = true;
+                        }
+                    } else {
+                        // 什麼都沒有，預設今天
+                        dateSet = true; // 保留targetDate為今天
+                    }
+                }
+
+                // 如果 dateSet 為 false（極少數情況），則預設今天
+                if (!dateSet) {
+                    targetDate = new Date(today);
+                }
+
+                const y = targetDate.getFullYear();
+                const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const d = String(targetDate.getDate()).padStart(2, '0');
+                date = y + '-' + m + '-' + d;
+
+                // ---------- 時間解析（支援中文數字與「半」） ----------
+                function chineseToNum(ch) {
+                    const map = {
+                        '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+                        '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+                        '十': 10, '十一': 11, '十二': 12
+                    };
+                    return map[ch] !== undefined ? map[ch] : parseInt(ch);
+                }
+
+                // 先嘗試標準格式 HH:MM 或 HH.MM
+                const t1 = text.match(/(\d{1,2})[:.](\d{2})/);
+                if (t1) {
+                    time = String(t1[1]).padStart(2, '0') + ':' + t1[2];
+                } else {
+                    // 嘗試「X點」或「X點半」
+                    const pointMatch = text.match(/([一二三四五六七八九十十一十二零\d]+)\s*點\s*(半)?/);
+                    if (pointMatch) {
+                        let hour = chineseToNum(pointMatch[1]);
+                        let minute = 0;
+                        if (pointMatch[2] === '半') minute = 30;
+                        // 處理上午/下午
+                        if (text.includes('下午') || text.includes('晚上') || text.includes('傍晚')) {
+                            if (hour < 12) hour += 12;
+                        } else if (text.includes('凌晨') && hour === 12) {
+                            hour = 0;
+                        } else if (text.includes('上午') && hour === 12) {
+                            hour = 0;
+                        }
+                        if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+                            time = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+                        }
+                    }
+                }
+
+                return { summary, category, date, time };
+            }
+
+            // ----- 呼叫 Gemini API（真實） -----
+            async function callGeminiAPI(text) {
+                if (!geminiApiKey) {
+                    throw new Error('尚未設定 Gemini API Key');
+                }
+
+                const url =
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+
+                const today = new Date().toISOString().split('T')[0];
+                const systemPrompt =
+                    `你是行政助理，負責從訊息中抽取待辦重點，今天是 ${today}。
+                    規則：
+                    - 日期一律轉成 YYYY-MM-DD；「明天」「下週三」等相對日期依今天推算。
+                    - 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
+                    - category 欄位只能填「繳費」「會議」「其他」三選一。
+                    - 找不到的欄位一律回空字串，不要自行編造內容。
+                    - 只回傳 JSON，不要加任何說明文字。
+                    輸出格式固定為：
+                    {"summary":"","category":"","date":"","time":""}`;
+
+                const payload = {
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    contents: [{
+                        parts: [{ text: text }]
+                    }],
+                    generationConfig: {
+                        responseMimeType: 'application/json'
+                    }
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API 請求失敗 (${response.status}): ${errText}`);
+                }
+
+                const data = await response.json();
+                if (!data.candidates || !data.candidates[0]) {
+                    throw new Error('Gemini 無回應');
+                }
+
+                const resultText = data.candidates[0].content.parts[0].text;
+                try {
+                    return JSON.parse(resultText);
+                } catch (_) {
+                    throw new Error('Gemini 回傳非 JSON 格式');
+                }
+            }
+
+            // ----- 主要處理流程 -----
+            async function handleAdd() {
+                if (isProcessing) return;
+
+                const rawText = todoInput.value.trim();
+                if (!rawText) {
+                    setStatus('⚠️ 請輸入待辦事項', true);
+                    todoInput.focus();
+                    return;
+                }
+
+                setLoading(true);
+                setStatus('⏳ AI 解析中...');
+
+                try {
+                    let parsed;
+                    if (useGemini && geminiApiKey) {
+                        parsed = await callGeminiAPI(rawText);
+                    } else {
+                        parsed = mockParse(rawText);
+                    }
+
+                    const summary = parsed.summary || rawText;
+                    const category = parsed.category || '其他';
+                    const date = parsed.date || '';
+                    const time = parsed.time || '';
+
+                    addTodo(summary, category, date, time);
+                    todoInput.value = '';
+                    todoInput.focus();
+
+                    const mode = (useGemini && geminiApiKey) ? '🧠 Gemini' : '🔧 模擬';
+                    setStatus(`✅ 已新增！(${mode}) 事項：${summary}`);
+                } catch (err) {
+                    console.error(err);
+                    setStatus(`❌ 解析失敗：${err.message}`, true);
+                    addTodo(rawText, '其他', '', '');
+                    setStatus(`⚠️ 已以原始文字新增，但 AI 解析失敗：${err.message}`, true);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            // ----- 填入範例 -----
+            function fillDemo() {
+                const demos = [
+                    '明天早上十點要交房租，記得轉帳給房東',
+                    '下週三下午三點開會討論專案進度',
+                    '今天下午五點前繳交信用卡費',
+                    '週五晚上八點跟朋友聚餐',
+                    '10月6日下午3點開會',
+                    '下午三點都更開會',
+                    '今日下午兩點看醫生',
+                    '後日早上九點報到',
+                    '明日中午十二點半吃飯',
+                    '10年後10月6日早上十點交房租',
+                    '2028年',
+                    '2028年10月6日',
+                    '2028年10月6日下午十點都更開會',
+                ];
+                const pick = demos[Math.floor(Math.random() * demos.length)];
+                todoInput.value = pick;
+                todoInput.focus();
+                setStatus(`📝 已填入範例：「${pick}」`);
+            }
+
+            // ----- 初始化 API 設定 -----
+            function initApiConfig() {
+                const saved = localStorage.getItem('aiTodoData');
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        if (data.geminiApiKey) {
+                            geminiApiKey = data.geminiApiKey;
+                            useGemini = data.useGemini || false;
+                            apiKeyInput.value = geminiApiKey;
+                            updateApiHint();
+                        }
+                    } catch (_) { /* ignore */ }
+                }
+            }
+
+            function updateApiHint() {
+                if (useGemini && geminiApiKey) {
+                    apiHint.innerHTML =
+                        `🧠 目前使用 <strong>真實 Gemini API</strong>（已設定金鑰）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
+                } else {
+                    apiHint.innerHTML =
+                        `⚙️ 本範例使用 <strong>模擬解析</strong>（無需 API Key）。若要串接真實 Gemini API，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
+                }
+                document.getElementById('toggleApiConfig')?.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    apiConfig.style.display = apiConfig.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+
+            // ----- 儲存 API Key -----
+            function saveApiKey() {
+                const key = apiKeyInput.value.trim();
+                if (!key) {
+                    setStatus('⚠️ 請先貼上 API Key', true);
+                    return;
+                }
+                geminiApiKey = key;
+                useGemini = true;
+                saveToLocal();
+                updateApiHint();
+                apiConfig.style.display = 'none';
+                setStatus('✅ Gemini API Key 已儲存（本地）');
+            }
+
+            function clearApiKey() {
+                geminiApiKey = '';
+                useGemini = false;
+                apiKeyInput.value = '';
+                saveToLocal();
+                updateApiHint();
+                setStatus('🧹 已清除 API Key，切換為模擬模式');
+            }
+
+            // ----- 事件綁定 -----
+            addBtn.addEventListener('click', handleAdd);
+
+            todoInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAdd();
+                }
+            });
+
+            clearBtn.addEventListener('click', clearAll);
+
+            demoBtn.addEventListener('click', fillDemo);
+
+            exportAllBtn.addEventListener('click', exportAllTodos);
+
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.id === 'toggleApiConfig') {
+                    e.preventDefault();
+                    apiConfig.style.display = apiConfig.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+
+            saveApiKeyBtn.addEventListener('click', saveApiKey);
+            clearApiKeyBtn.addEventListener('click', clearApiKey);
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && apiConfig.style.display === 'block') {
+                    apiConfig.style.display = 'none';
+                }
+            });
+
+            // ----- 啟動 -----
+            const loaded = loadFromLocal();
+            if (loaded) {
+                if (geminiApiKey) {
+                    apiKeyInput.value = geminiApiKey;
+                }
+                updateApiHint();
+                render();
+                setStatus(`📂 已載入 ${todos.length} 項待辦`);
+            } else {
+                addTodo('明天早上十點交房租', '繳費', '2026-09-02', '10:00');
+                addTodo('下週三下午三點開會', '會議', '2026-09-09', '15:00');
+                setStatus('👋 歡迎！已為你建立兩筆範例');
+            }
+
+            initApiConfig();
+            todoInput.focus();
+        })();
+    </script>
+
+</body>
+</html>
