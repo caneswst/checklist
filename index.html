@@ -128,13 +128,17 @@
         (function() {
             'use strict';
 
+            // ----- 版本控制：每次更新程式碼時增加版本號，自動清除舊數據 -----
+            const APP_VERSION = '2.1';
+
+            // ----- 狀態 -----
             let todos = [];
             let nextId = 1;
             let isProcessing = false;
             let useApi = true;
             let apiKey = '';
 
-            // DOM 參照
+            // ----- DOM 參照 -----
             const todoInput = document.getElementById('todoInput');
             const addBtn = document.getElementById('addBtn');
             const todoItems = document.getElementById('todoItems');
@@ -152,7 +156,7 @@
             const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
             const togglePwdBtn = document.getElementById('togglePwdBtn');
 
-            // 輔助函式
+            // ----- 輔助函式 -----
             function setStatus(msg, isError = false) {
                 statusMsg.textContent = msg;
                 statusMsg.style.color = isError ? '#b91c1c' : '#64748b';
@@ -163,14 +167,26 @@
                 if (loading) spinner.classList.add('active');
                 else spinner.classList.remove('active');
             }
+
+            // ----- 儲存 / 載入 localStorage（含版本檢查） -----
             function saveToLocal() {
-                try { localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey })); } catch (_) {}
+                try {
+                    const data = { todos, nextId, useApi, apiKey, version: APP_VERSION };
+                    localStorage.setItem('aiTodoData', JSON.stringify(data));
+                } catch (_) {}
             }
+
             function loadFromLocal() {
                 try {
                     const raw = localStorage.getItem('aiTodoData');
                     if (!raw) return false;
                     const data = JSON.parse(raw);
+                    // 版本檢查：若版本不符，視為無效數據
+                    if (data.version !== APP_VERSION) {
+                        console.log('🔄 版本更新，清除舊數據');
+                        localStorage.removeItem('aiTodoData');
+                        return false;
+                    }
                     if (data.todos && Array.isArray(data.todos)) {
                         todos = data.todos;
                         nextId = data.nextId || 1;
@@ -182,7 +198,7 @@
                 return false;
             }
 
-            // 渲染
+            // ----- 渲染待辦清單 -----
             function render() {
                 todoItems.innerHTML = '';
                 if (todos.length === 0) {
@@ -216,12 +232,13 @@
                 todoCount.textContent = todos.length;
                 saveToLocal();
             }
+
             function escapeHtml(text) {
                 if (!text) return '';
                 return String(text).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
             }
 
-            // CRUD
+            // ----- CRUD -----
             function addTodo(summary, category, date, time) {
                 const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now() };
                 todos.push(todo);
@@ -242,7 +259,7 @@
                 }
             }
 
-            // 行事曆匯出（同前）
+            // ----- 行事曆匯出（同前，略） -----
             function generateIcsEvent(todo) {
                 const now = new Date();
                 const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
@@ -378,7 +395,7 @@
                 }
             }
 
-            // ---------- 模擬解析（修正星期邏輯，支援「下星期日」） ----------
+            // ---------- 模擬解析（修正星期邏輯） ----------
             function mockParse(text) {
                 console.log('🔧 使用模擬解析（支援自訂天數及下星期日）');
                 let summary = text;
@@ -431,28 +448,23 @@
                 const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
                 const weekMatch = text.match(weekRegex);
                 if (weekMatch) {
-                    const prefix1 = weekMatch[1]; // '上' 或 '下'
-                    const prefix2 = weekMatch[2]; // 可能為 '下' (下下)
+                    const prefix1 = weekMatch[1];
+                    const prefix2 = weekMatch[2];
                     const dayNum = weekMap[weekMatch[3]];
                     if (dayNum) {
-                        let currentDay = today.getDay(); // 0=日
-                        let targetDay = dayNum % 7;      // 0=日
-                        // 計算「本週」的目標日偏移（0~6）
+                        let currentDay = today.getDay();
+                        let targetDay = dayNum % 7;
+                        // 計算本週目標日的偏移（0~6）
                         let diff = (targetDay - currentDay + 7) % 7;
                         // 根據前綴調整
-                        if (prefix1 === '下') {
-                            diff += 7;
-                        } else if (prefix1 === '上') {
-                            diff -= 7;
-                        }
-                        if (prefix2 === '下') {
-                            diff += 7; // 下下
-                        }
+                        if (prefix1 === '下') diff += 7;
+                        else if (prefix1 === '上') diff -= 7;
+                        if (prefix2 === '下') diff += 7; // 下下
                         weekOffset = diff;
                     }
                 }
 
-                // ---- 組合日期（優先級：純年份 > 月日 > 星期幾 > 天數偏移） ----
+                // ---- 組合日期 ----
                 if (pureYear !== null) {
                     targetDate.setFullYear(pureYear);
                     if (month !== null && day !== null) targetDate.setMonth(month, day);
@@ -460,12 +472,10 @@
                     if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                     if (month !== null && day !== null) targetDate.setMonth(month, day);
                     if (weekOffset !== null) {
-                        // 直接使用計算好的偏移（已包含上/下/下下）
                         targetDate = new Date(today);
                         targetDate.setDate(today.getDate() + weekOffset);
                         if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                     } else if (dayOffset !== null) {
-                        // 若已有月日，則忽略天數偏移（語意衝突）
                         if (month === null || day === null) {
                             targetDate = new Date(today);
                             targetDate.setDate(today.getDate() + dayOffset);
@@ -479,7 +489,7 @@
                 const d = String(targetDate.getDate()).padStart(2, '0');
                 date = y + '-' + m + '-' + d;
 
-                // ---- 時間解析（支援粵語「點」「半」） ----
+                // ---- 時間解析 ----
                 function chineseToNum(ch) {
                     const map = { '零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12 };
                     return map[ch] !== undefined ? map[ch] : parseInt(ch);
@@ -579,16 +589,23 @@
                 setStatus(`📝 已填入範例：「${pick}」`);
             }
 
-            // API 設定管理
+            // ----- API 設定管理 -----
             function initApiConfig() {
+                // 先嘗試載入，若版本不符會自動清除
                 const loaded = loadFromLocal();
-                if (!loaded) saveToLocal();
+                if (!loaded) {
+                    // 無數據或版本不符，重置狀態
+                    todos = [];
+                    nextId = 1;
+                    saveToLocal();
+                }
                 apiKeyInput.value = apiKey;
                 updateApiHint();
                 if (apiKey) useApi = true;
                 console.log('🔑 API Key:', apiKey ? '已設定' : '無');
                 console.log('🧠 useApi:', useApi);
             }
+
             function updateApiHint() {
                 if (useApi && apiKey) {
                     apiHint.innerHTML = `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
@@ -601,6 +618,7 @@
                     link.addEventListener('click', toggleConfigHandler);
                 }
             }
+
             function toggleConfigHandler(e) {
                 e.preventDefault();
                 const isHidden = apiConfig.style.display === 'none';
@@ -611,6 +629,7 @@
                     setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」');
                 }
             }
+
             function saveApiKey() {
                 const key = apiKeyInput.value.trim();
                 if (!key) { setStatus('⚠️ 請先貼上 API Key', true); return; }
@@ -622,6 +641,7 @@
                 setStatus('✅ 智譜 AI API Key 已儲存（本地）');
                 console.log('🔑 已儲存新金鑰');
             }
+
             function clearApiKey() {
                 apiKey = '';
                 useApi = false;
@@ -631,6 +651,7 @@
                 setStatus('🧹 已清除 API Key，切換為模擬模式');
                 console.log('🧹 已清除金鑰');
             }
+
             function togglePwdVisibility() {
                 if (apiKeyInput.type === 'password') {
                     apiKeyInput.type = 'text';
@@ -641,7 +662,7 @@
                 }
             }
 
-            // 事件綁定
+            // ----- 事件綁定 -----
             addBtn.addEventListener('click', handleAdd);
             todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } });
             clearBtn.addEventListener('click', clearAll);
@@ -652,8 +673,9 @@
             togglePwdBtn.addEventListener('click', togglePwdVisibility);
             document.addEventListener('keydown', e => { if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none'; });
 
-            // 啟動
+            // ----- 啟動 -----
             initApiConfig();
+
             if (todos.length === 0) {
                 addTodo('下星期日開會', '會議', '', '');
                 addTodo('聽晚9點開會', '會議', '', '');
