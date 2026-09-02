@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 待辦助手 (智譜 AI) - 過期歸納</title>
+    <title>AI 待辦助手 (智譜 AI + 雲端同步)</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
@@ -69,11 +69,13 @@
         .api-hint, .cat-hint { font-size: 13px; color: #94a3b8; margin-top: 14px; padding: 14px 18px; background: #f8fafc; border-radius: 12px; border: 1px dashed #d1d5db; line-height: 1.7; }
         .api-hint a, .cat-hint a { color: #6366f1; text-decoration: none; }
         .api-hint a:hover, .cat-hint a:hover { text-decoration: underline; }
-        .api-config-row, .cat-config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .api-config-row input[type="text"], .cat-config-row input[type="text"] { flex: 1; padding: 10px 14px; border: 2px solid #d1d5db; border-radius: 10px; font-size: 14px; outline: none; min-width: 200px; background: #ffffff; }
-        .api-config-row input[type="text"]:focus, .cat-config-row input[type="text"]:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
+        .api-config-row, .cat-config-row, .sync-config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .api-config-row input[type="text"], .cat-config-row input[type="text"], .sync-config-row input[type="text"] { flex: 1; padding: 10px 14px; border: 2px solid #d1d5db; border-radius: 10px; font-size: 14px; outline: none; min-width: 150px; background: #ffffff; }
+        .api-config-row input[type="text"]:focus, .cat-config-row input[type="text"]:focus, .sync-config-row input[type="text"]:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
         .toggle-pwd-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 8px; color: #64748b; transition: background 0.2s; }
         .toggle-pwd-btn:hover { background: #e2e8f0; }
+        .sync-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #475569; }
+        .sync-status { font-size: 13px; color: #64748b; margin-top: 6px; }
         .cat-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .cat-tag { display: inline-flex; align-items: center; gap: 6px; background: #eef2ff; padding: 4px 12px 4px 16px; border-radius: 20px; font-size: 14px; color: #4338ca; }
         .cat-tag .del-cat { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 0 4px; }
@@ -89,15 +91,15 @@
             .todo-item .cal-btn, .todo-item .edit-btn { margin-left: auto; font-size: 20px; }
             .todo-item .delete-btn { margin-left: 0; }
             .footer-actions { flex-direction: column; align-items: stretch; }
-            .api-config-row, .cat-config-row { flex-direction: column; align-items: stretch; }
+            .api-config-row, .cat-config-row, .sync-config-row { flex-direction: column; align-items: stretch; }
             .todo-item .edit-btns { flex-wrap: wrap; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>✅ 待辦助手 <small>智譜 AI</small></h1>
-        <div class="subtitle">輸入一句話（支援粵語），AI 自動拆解成 事項 · 分類 · 日期 · 時間 <span style="color:#ef4444;font-size:13px;">🔔 開始前5分鐘提醒</span></div>
+        <h1>✅ 待辦助手 <small>智譜 AI + 雲端</small></h1>
+        <div class="subtitle">輸入一句話，AI 自動拆解成 事項 · 分類 · 日期 · 時間 <span style="color:#ef4444;font-size:13px;">🔔 開始前5分鐘提醒</span></div>
 
         <div class="input-area">
             <div class="input-row">
@@ -144,9 +146,10 @@
 
         <div class="api-hint" id="apiHint">
             🧠 目前使用 <strong>智譜 AI</strong>（金鑰已自動載入）。
-            點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可檢視或更換金鑰。
+            點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰及雲端同步。
         </div>
         <div id="apiConfig" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
+            <!-- 智譜 AI Key -->
             <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:8px;">🔑 智譜 AI API Key</label>
             <div class="api-config-row">
                 <input type="text" id="apiKeyInput" placeholder="貼上你的智譜 API Key" />
@@ -154,9 +157,27 @@
                 <button class="btn btn-primary" id="saveApiKeyBtn" style="padding:10px 20px;font-size:14px;">💾 儲存</button>
                 <button class="btn btn-secondary" id="clearApiKeyBtn" style="padding:10px 20px;font-size:14px;">清除</button>
             </div>
-            <div style="font-size:13px;color:#64748b;margin-top:10px;">
+            <div style="font-size:13px;color:#64748b;margin-top:8px;margin-bottom:16px;">
                 可至 <a href="https://open.bigmodel.cn/" target="_blank" style="color:#6366f1;">智譜AI開放平台</a> 取得金鑰（新用戶贈送 2000 萬 Token）。
-                儲存後會記錄在瀏覽器本地，不會上傳任何伺服器。
+            </div>
+
+            <!-- 雲端同步設定 -->
+            <hr style="border:1px dashed #d1d5db;margin:12px 0;" />
+            <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:8px;">☁️ 雲端同步 (JSONBin.io)</label>
+            <div class="sync-config-row">
+                <input type="text" id="syncApiKeyInput" placeholder="JSONBin API Key" style="flex:1;min-width:120px;" />
+                <input type="text" id="syncBinIdInput" placeholder="Bin ID" style="flex:1;min-width:120px;" />
+                <div class="sync-checkbox">
+                    <input type="checkbox" id="syncEnabled" />
+                    <label for="syncEnabled">啟用同步</label>
+                </div>
+                <button class="btn btn-primary btn-sm" id="saveSyncBtn">💾 儲存設定</button>
+                <button class="btn btn-secondary btn-sm" id="syncNowBtn">🔄 立即同步</button>
+            </div>
+            <div class="sync-status" id="syncStatus">尚未設定同步</div>
+            <div style="font-size:12px;color:#64748b;margin-top:6px;">
+                請至 <a href="https://jsonbin.io/" target="_blank" style="color:#6366f1;">JSONBin.io</a> 註冊並建立 Bin，取得 API Key 與 Bin ID。
+                啟用後，每次修改會自動上傳，開啟頁面會自動下載最新資料。
             </div>
         </div>
     </div>
@@ -166,7 +187,7 @@
             'use strict';
 
             // ----- 版本控制 -----
-            const APP_VERSION = '3.5';
+            const APP_VERSION = '3.6';
 
             // ----- 狀態 -----
             let todos = [];
@@ -176,6 +197,12 @@
             let apiKey = '';
             let editingId = null;
             let categories = [];
+
+            // ----- 雲端同步狀態 -----
+            let syncEnabled = false;
+            let syncApiKey = '';
+            let syncBinId = '';
+            let isSyncing = false;
 
             // ----- DOM 參照 -----
             const todoInput = document.getElementById('todoInput');
@@ -201,6 +228,14 @@
             const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
             const togglePwdBtn = document.getElementById('togglePwdBtn');
 
+            // 同步相關 DOM
+            const syncApiKeyInput = document.getElementById('syncApiKeyInput');
+            const syncBinIdInput = document.getElementById('syncBinIdInput');
+            const syncEnabledCheckbox = document.getElementById('syncEnabled');
+            const saveSyncBtn = document.getElementById('saveSyncBtn');
+            const syncNowBtn = document.getElementById('syncNowBtn');
+            const syncStatus = document.getElementById('syncStatus');
+
             // ----- 輔助函式 -----
             function setStatus(msg, isError = false) {
                 statusMsg.textContent = msg;
@@ -224,7 +259,6 @@
                     if (timeParts.length !== 2) return false;
                     targetDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), parseInt(timeParts[0]), parseInt(timeParts[1]), 0);
                 } else {
-                    // 只有日期，比較日期是否小於今天
                     const now = new Date();
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     const target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
@@ -264,7 +298,7 @@
                 });
             }
 
-            // ----- 儲存 / 載入 -----
+            // ----- 儲存 / 載入 local（含版本檢查） -----
             function saveToLocal() {
                 try { localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey, version: APP_VERSION })); } catch (_) {}
             }
@@ -284,7 +318,136 @@
                 return false;
             }
 
-            // ----- 渲染（分組：未過期 / 已過期） -----
+            // ----- 雲端同步函數 -----
+            function loadSyncConfig() {
+                try {
+                    const raw = localStorage.getItem('syncConfig');
+                    if (raw) {
+                        const config = JSON.parse(raw);
+                        syncApiKey = config.apiKey || '';
+                        syncBinId = config.binId || '';
+                        syncEnabled = config.enabled || false;
+                        syncApiKeyInput.value = syncApiKey;
+                        syncBinIdInput.value = syncBinId;
+                        syncEnabledCheckbox.checked = syncEnabled;
+                        updateSyncStatus('已載入設定');
+                    } else {
+                        updateSyncStatus('尚未設定同步');
+                    }
+                } catch (_) {
+                    updateSyncStatus('設定讀取錯誤');
+                }
+            }
+            function saveSyncConfig() {
+                const config = {
+                    apiKey: syncApiKeyInput.value.trim(),
+                    binId: syncBinIdInput.value.trim(),
+                    enabled: syncEnabledCheckbox.checked
+                };
+                syncApiKey = config.apiKey;
+                syncBinId = config.binId;
+                syncEnabled = config.enabled;
+                localStorage.setItem('syncConfig', JSON.stringify(config));
+                updateSyncStatus('設定已儲存');
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    // 上傳目前資料
+                    uploadToCloud();
+                }
+            }
+            function updateSyncStatus(msg) {
+                syncStatus.textContent = '☁️ ' + msg;
+            }
+
+            // 上傳資料到 JSONBin.io
+            async function uploadToCloud() {
+                if (!syncEnabled || !syncApiKey || !syncBinId) {
+                    updateSyncStatus('同步未啟用或缺少憑證');
+                    return;
+                }
+                if (isSyncing) return;
+                isSyncing = true;
+                updateSyncStatus('上傳中...');
+                try {
+                    const data = {
+                        todos: todos,
+                        nextId: nextId,
+                        categories: categories,
+                        version: APP_VERSION,
+                        timestamp: Date.now()
+                    };
+                    const response = await fetch(`https://api.jsonbin.io/v3/b/${syncBinId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': syncApiKey
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        const err = await response.text();
+                        throw new Error(`上傳失敗 (${response.status}): ${err}`);
+                    }
+                    updateSyncStatus(`✅ 已同步 (${new Date().toLocaleTimeString()})`);
+                } catch (e) {
+                    console.error('上傳錯誤:', e);
+                    updateSyncStatus(`❌ 上傳錯誤: ${e.message}`);
+                } finally {
+                    isSyncing = false;
+                }
+            }
+
+            // 從雲端下載資料
+            async function downloadFromCloud() {
+                if (!syncEnabled || !syncApiKey || !syncBinId) {
+                    updateSyncStatus('同步未啟用或缺少憑證');
+                    return;
+                }
+                if (isSyncing) return;
+                isSyncing = true;
+                updateSyncStatus('下載中...');
+                try {
+                    const response = await fetch(`https://api.jsonbin.io/v3/b/${syncBinId}/latest`, {
+                        method: 'GET',
+                        headers: { 'X-Master-Key': syncApiKey }
+                    });
+                    if (!response.ok) {
+                        const err = await response.text();
+                        throw new Error(`下載失敗 (${response.status}): ${err}`);
+                    }
+                    const result = await response.json();
+                    const data = result.record;
+                    if (!data || !data.todos || !Array.isArray(data.todos)) {
+                        throw new Error('雲端資料格式錯誤');
+                    }
+                    // 合併或覆蓋本地
+                    // 以雲端為主，但如果有本地未同步的變更，可能衝突。此處簡單覆蓋
+                    todos = data.todos;
+                    nextId = data.nextId || 1;
+                    if (data.categories && Array.isArray(data.categories)) {
+                        categories = data.categories;
+                        saveCategories();
+                        renderCatList();
+                    }
+                    // 保存到本地
+                    saveToLocal();
+                    render();
+                    updateSyncStatus(`✅ 已下載 (${new Date().toLocaleTimeString()})`);
+                } catch (e) {
+                    console.error('下載錯誤:', e);
+                    updateSyncStatus(`❌ 下載錯誤: ${e.message}`);
+                } finally {
+                    isSyncing = false;
+                }
+            }
+
+            // 自動同步：當啟用同步時，每次修改後上傳
+            function autoSync() {
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    uploadToCloud();
+                }
+            }
+
+            // ----- 渲染（分組） -----
             function render() {
                 todoItems.innerHTML = '';
                 if (todos.length === 0) {
@@ -294,7 +457,6 @@
                     return;
                 }
 
-                // 分組
                 const overdue = [];
                 const upcoming = [];
                 todos.forEach(t => {
@@ -302,7 +464,6 @@
                     else upcoming.push(t);
                 });
 
-                // 排序：未過期按時間升序，過期按時間降序（最近的先）
                 upcoming.sort((a, b) => {
                     const da = a.date || '1970-01-01';
                     const db = b.date || '1970-01-01';
@@ -321,12 +482,9 @@
                 todoCount.textContent = total;
                 countBadge.innerHTML = `共 <strong>${total}</strong> 項${overdueCount > 0 ? `（已過期 <span style="color:#b91c1c;">${overdueCount}</span> 項）` : ''}`;
 
-                // 渲染未過期
                 if (upcoming.length > 0) {
                     upcoming.forEach(item => renderTodoItem(item, false));
                 }
-
-                // 渲染已過期
                 if (overdue.length > 0) {
                     const divider = document.createElement('div');
                     divider.className = 'todo-divider overdue';
@@ -336,7 +494,6 @@
                 }
             }
 
-            // 渲染單個待辦項目（過期標記）
             function renderTodoItem(item, isOverdueFlag) {
                 const div = document.createElement('div');
                 div.className = 'todo-item';
@@ -344,7 +501,6 @@
                 div.dataset.id = item.id;
 
                 if (editingId === item.id) {
-                    // 編輯模式（與之前相同）
                     let catOptions = '';
                     const allCats = [...categories];
                     const currentCat = item.category || '其他';
@@ -435,6 +591,7 @@
                     editingId = null;
                     render();
                     setStatus('✅ 已更新待辦事項');
+                    autoSync(); // 同步
                 }
             }
 
@@ -448,6 +605,7 @@
                 const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now(), reminded: false };
                 todos.push(todo);
                 render();
+                autoSync();
                 return todo;
             }
             function deleteTodo(id) {
@@ -455,6 +613,7 @@
                 todos = todos.filter(t => t.id !== id);
                 render();
                 setStatus('🗑️ 已刪除一項');
+                autoSync();
             }
             function clearAll() {
                 if (!todos.length) return;
@@ -463,10 +622,11 @@
                     editingId = null;
                     render();
                     setStatus('🧹 已清空全部');
+                    autoSync();
                 }
             }
 
-            // ----- 行事曆匯出（同前） -----
+            // ----- 行事曆匯出（略） -----
             function generateIcsEvent(todo) {
                 const now = new Date();
                 const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
@@ -872,7 +1032,7 @@
                 }, 30000);
             }
 
-            // ----- API 與分類設定管理 -----
+            // ----- 初始化設定 -----
             function initConfig() {
                 loadCategories();
                 renderCatList();
@@ -881,17 +1041,26 @@
                 apiKeyInput.value = apiKey;
                 updateApiHint();
                 if (apiKey) useApi = true;
-                console.log('🔑 API Key:', apiKey ? '已設定' : '無');
-                console.log('🧠 useApi:', useApi);
+
+                // 載入同步設定
+                loadSyncConfig();
 
                 requestNotificationPermission();
                 startReminderChecker();
                 setTimeout(checkReminders, 2000);
+
+                // 如果啟用同步，自動下載
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    setTimeout(downloadFromCloud, 1000);
+                }
+
+                console.log('🔑 API Key:', apiKey ? '已設定' : '無');
+                console.log('🧠 useApi:', useApi);
             }
 
             function updateApiHint() {
                 if (useApi && apiKey) {
-                    apiHint.innerHTML = `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
+                    apiHint.innerHTML = `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰及雲端同步。`;
                 } else {
                     apiHint.innerHTML = `⚙️ 目前使用 <strong>模擬解析</strong>（無 API 金鑰）。若要啟用智譜 AI，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
                 }
@@ -909,10 +1078,11 @@
                 if (isHidden) { apiKeyInput.focus(); apiKeyInput.select(); setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」'); }
             }
 
+            // ----- 儲存 API Key -----
             function saveApiKey() {
                 const key = apiKeyInput.value.trim();
                 if (!key) { setStatus('⚠️ 請先貼上 API Key', true); return; }
-                apiKey = key; useApi = true; saveToLocal(); updateApiHint(); apiConfig.style.display = 'none';
+                apiKey = key; useApi = true; saveToLocal(); updateApiHint();
                 setStatus('✅ 智譜 AI API Key 已儲存（本地）');
                 console.log('🔑 已儲存新金鑰');
             }
@@ -933,6 +1103,7 @@
                 }
             }
 
+            // ----- 分類管理面板 -----
             function toggleCatPanel() {
                 const isHidden = catPanel.style.display === 'none';
                 catPanel.style.display = isHidden ? 'block' : 'none';
@@ -948,7 +1119,25 @@
                 renderCatList();
                 newCatInput.value = '';
                 render();
+                autoSync();
                 setStatus(`✅ 已新增分類「${name}」`);
+            }
+
+            // ----- 同步設定儲存與按鈕 -----
+            function saveSyncSettings() {
+                saveSyncConfig();
+                // 如果啟用同步，立即嘗試上傳
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    uploadToCloud();
+                }
+            }
+
+            function manualSync() {
+                if (!syncEnabled || !syncApiKey || !syncBinId) {
+                    setStatus('⚠️ 請先設定並啟用同步', true);
+                    return;
+                }
+                downloadFromCloud();
             }
 
             // ----- 事件綁定 -----
@@ -963,6 +1152,11 @@
             saveApiKeyBtn.addEventListener('click', saveApiKey);
             clearApiKeyBtn.addEventListener('click', clearApiKey);
             togglePwdBtn.addEventListener('click', togglePwdVisibility);
+
+            // 同步事件
+            saveSyncBtn.addEventListener('click', saveSyncSettings);
+            syncNowBtn.addEventListener('click', manualSync);
+
             document.addEventListener('keydown', e => {
                 if (e.key === 'Escape') {
                     if (apiConfig.style.display === 'block') apiConfig.style.display = 'none';
@@ -974,17 +1168,8 @@
             initConfig();
 
             if (todos.length === 0) {
-                // 建立一個過期範例（昨天）和一個未來範例
+                // 建立範例
                 const now = new Date();
-                const yesterday = new Date(now);
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yY = yesterday.getFullYear();
-                const yM = String(yesterday.getMonth() + 1).padStart(2, '0');
-                const yD = String(yesterday.getDate()).padStart(2, '0');
-                const yH = String(yesterday.getHours()).padStart(2, '0');
-                const yMin = String(yesterday.getMinutes()).padStart(2, '0');
-                addTodo('已過期範例（昨天）', '會議', `${yY}-${yM}-${yD}`, `${yH}:${yMin}`);
-
                 const future = new Date(now);
                 future.setMinutes(future.getMinutes() + 10);
                 const fY = future.getFullYear();
@@ -993,8 +1178,8 @@
                 const fH = String(future.getHours()).padStart(2, '0');
                 const fMin = String(future.getMinutes()).padStart(2, '0');
                 addTodo('未來範例（10分鐘後）', '會議', `${fY}-${fM}-${fD}`, `${fH}:${fMin}`);
-
-                setStatus('👋 歡迎！已建立「過期」與「未來」範例，過期事項會自動歸納');
+                addTodo('明天早上10點開會', '會議', '', '');
+                setStatus('👋 歡迎！已建立範例，設定雲端同步可跨裝置使用');
             } else {
                 render();
                 setStatus(`📂 已載入 ${todos.length} 項待辦`);
