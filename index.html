@@ -47,7 +47,6 @@
         .todo-item .edit-btn:hover { background: #fef9c3; }
         .todo-item .delete-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; transition: color 0.2s; padding: 4px 6px; border-radius: 8px; justify-self: end; }
         .todo-item .delete-btn:hover { color: #ef4444; background: #fef2f2; }
-        /* 編輯模式下的輸入框 */
         .todo-item .edit-input { width: 100%; padding: 4px 8px; border: 2px solid #818cf8; border-radius: 8px; font-size: 14px; background: #f8fafc; }
         .todo-item .edit-select { width: 100%; padding: 4px 8px; border: 2px solid #818cf8; border-radius: 8px; font-size: 14px; background: #f8fafc; }
         .todo-item .edit-date, .todo-item .edit-time { width: 100%; padding: 4px 8px; border: 2px solid #818cf8; border-radius: 8px; font-size: 14px; background: #f8fafc; }
@@ -97,7 +96,7 @@
 
         <div class="input-area">
             <div class="input-row">
-                <input type="text" id="todoInput" placeholder="例如：下星期日開會" autofocus />
+                <input type="text" id="todoInput" placeholder="例如：明天早上10點開會" autofocus />
                 <button class="btn btn-primary" id="addBtn">➕ 新增</button>
             </div>
             <div class="status-bar">
@@ -128,7 +127,6 @@
             </div>
         </div>
 
-        <!-- 分類管理面板（預設隱藏） -->
         <div id="catPanel" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
             <div style="font-weight:600;font-size:14px;color:#1e293b;margin-bottom:8px;">📂 管理分類</div>
             <div class="cat-config-row">
@@ -139,7 +137,6 @@
             <div style="font-size:12px;color:#64748b;margin-top:8px;">💡 刪除分類不會影響已使用該分類的待辦事項，僅從下拉選單中移除。</div>
         </div>
 
-        <!-- API 設定提示 -->
         <div class="api-hint" id="apiHint">
             🧠 目前使用 <strong>智譜 AI</strong>（金鑰已自動載入）。
             點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可檢視或更換金鑰。
@@ -164,7 +161,7 @@
             'use strict';
 
             // ----- 版本控制 -----
-            const APP_VERSION = '3.1';
+            const APP_VERSION = '3.3';
 
             // ----- 狀態 -----
             let todos = [];
@@ -173,7 +170,7 @@
             let useApi = true;
             let apiKey = '';
             let editingId = null;
-            let categories = []; // 自訂分類列表
+            let categories = [];
 
             // ----- DOM 參照 -----
             const todoInput = document.getElementById('todoInput');
@@ -214,22 +211,11 @@
             function loadCategories() {
                 try {
                     const stored = localStorage.getItem('categories');
-                    if (stored) {
-                        categories = JSON.parse(stored);
-                    } else {
-                        categories = ['繳費', '會議', '其他'];
-                        saveCategories();
-                    }
-                } catch (_) {
-                    categories = ['繳費', '會議', '其他'];
-                    saveCategories();
-                }
+                    if (stored) categories = JSON.parse(stored);
+                    else { categories = ['繳費', '會議', '其他']; saveCategories(); }
+                } catch (_) { categories = ['繳費', '會議', '其他']; saveCategories(); }
             }
-            function saveCategories() {
-                try {
-                    localStorage.setItem('categories', JSON.stringify(categories));
-                } catch (_) {}
-            }
+            function saveCategories() { try { localStorage.setItem('categories', JSON.stringify(categories)); } catch (_) {} }
             function renderCatList() {
                 catList.innerHTML = '';
                 categories.forEach(cat => {
@@ -238,15 +224,12 @@
                     span.innerHTML = `${escapeHtml(cat)} <button class="del-cat" data-cat="${escapeHtml(cat)}">✕</button>`;
                     span.querySelector('.del-cat').addEventListener('click', function() {
                         const name = this.dataset.cat;
-                        if (categories.length <= 1) {
-                            setStatus('⚠️ 至少保留一個分類', true);
-                            return;
-                        }
+                        if (categories.length <= 1) { setStatus('⚠️ 至少保留一個分類', true); return; }
                         if (confirm(`確定要刪除分類「${name}」嗎？\n（已使用該分類的待辦事項不會被刪除）`)) {
                             categories = categories.filter(c => c !== name);
                             saveCategories();
                             renderCatList();
-                            render(); // 重新渲染待辦清單（更新下拉選項）
+                            render();
                             setStatus(`✅ 已刪除分類「${name}」`);
                         }
                     });
@@ -254,26 +237,18 @@
                 });
             }
 
-            // ----- 儲存 / 載入 localStorage（含版本檢查） -----
+            // ----- 儲存 / 載入 -----
             function saveToLocal() {
-                try {
-                    const data = { todos, nextId, useApi, apiKey, version: APP_VERSION };
-                    localStorage.setItem('aiTodoData', JSON.stringify(data));
-                } catch (_) {}
+                try { localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey, version: APP_VERSION })); } catch (_) {}
             }
             function loadFromLocal() {
                 try {
                     const raw = localStorage.getItem('aiTodoData');
                     if (!raw) return false;
                     const data = JSON.parse(raw);
-                    if (data.version !== APP_VERSION) {
-                        console.log('🔄 版本更新，清除舊數據');
-                        localStorage.removeItem('aiTodoData');
-                        return false;
-                    }
+                    if (data.version !== APP_VERSION) { localStorage.removeItem('aiTodoData'); return false; }
                     if (data.todos && Array.isArray(data.todos)) {
-                        todos = data.todos;
-                        nextId = data.nextId || 1;
+                        todos = data.todos; nextId = data.nextId || 1;
                         useApi = data.useApi !== undefined ? data.useApi : true;
                         apiKey = data.apiKey || '';
                         return true;
@@ -282,7 +257,7 @@
                 return false;
             }
 
-            // ----- 渲染待辦清單（支援編輯模式） -----
+            // ----- 渲染 -----
             function render() {
                 todoItems.innerHTML = '';
                 if (todos.length === 0) {
@@ -297,22 +272,16 @@
                     div.dataset.id = item.id;
 
                     if (editingId === item.id) {
-                        // ---- 編輯模式 ----
-                        // 構建分類下拉選項：包含所有分類，並確保當前分類也在清單中
                         let catOptions = '';
                         const allCats = [...categories];
-                        // 若當前分類不在清單中，加入清單（但標示為特殊）
                         const currentCat = item.category || '其他';
-                        if (!allCats.includes(currentCat)) {
-                            allCats.push(currentCat);
-                        }
+                        if (!allCats.includes(currentCat)) allCats.push(currentCat);
                         allCats.forEach(c => {
                             const selected = c === currentCat ? 'selected' : '';
                             const isDeleted = !categories.includes(c) && c === currentCat;
                             const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
                             catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
                         });
-
                         div.innerHTML = `
                             <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
                             <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
@@ -338,14 +307,8 @@
                         const inputs = div.querySelectorAll('input, select');
                         inputs.forEach(inp => {
                             inp.addEventListener('keydown', function(e) {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    saveEdit(item.id);
-                                } else if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    editingId = null;
-                                    render();
-                                }
+                                if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
+                                else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
                             });
                         });
                         setTimeout(() => {
@@ -353,7 +316,6 @@
                             if (summaryInput) summaryInput.focus();
                         }, 50);
                     } else {
-                        // ---- 檢視模式 ----
                         const cat = item.category || '其他';
                         const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
                         const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
@@ -368,9 +330,7 @@
                             <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
                             <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
                         `;
-                        div.querySelector('.delete-btn').addEventListener('click', function() {
-                            deleteTodo(Number(this.dataset.id));
-                        });
+                        div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
                         div.querySelector('.cal-btn').addEventListener('click', function() {
                             const todo = todos.find(t => t.id === Number(this.dataset.id));
                             if (todo) exportSingleTodo(todo);
@@ -387,18 +347,14 @@
                 saveToLocal();
             }
 
-            // ----- 儲存編輯 -----
             function saveEdit(id) {
                 const summaryInput = document.getElementById(`edit-summary-${id}`);
                 const catSelect = document.getElementById(`edit-cat-${id}`);
                 const dateInput = document.getElementById(`edit-date-${id}`);
                 const timeInput = document.getElementById(`edit-time-${id}`);
                 if (!summaryInput || !catSelect || !dateInput || !timeInput) return;
-
                 const newSummary = summaryInput.value.trim() || '（無標題）';
-                let newCategory = catSelect.value;
-                // 如果選擇的分類不在 categories 中（可能是已刪除的），但我們仍保存其文字
-                // 確保不遺失
+                const newCategory = catSelect.value;
                 const todo = todos.find(t => t.id === id);
                 if (todo) {
                     todo.summary = newSummary;
@@ -439,7 +395,7 @@
                 }
             }
 
-            // ----- 行事曆匯出（同前） -----
+            // ----- 行事曆匯出 -----
             function generateIcsEvent(todo) {
                 const now = new Date();
                 const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
@@ -493,9 +449,7 @@
                     const safeName = todo.summary.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 30);
                     downloadIcs(safeName + '.ics', ics);
                     setStatus('📅 已匯出「' + todo.summary + '」至行事曆檔案');
-                } catch (e) {
-                    setStatus('⚠️ 匯出失敗：' + e.message, true);
-                }
+                } catch (e) { setStatus('⚠️ 匯出失敗：' + e.message, true); }
             }
             function exportAllTodos() {
                 if (!todos.length) { setStatus('⚠️ 沒有待辦事項可匯出', true); return; }
@@ -518,9 +472,7 @@
                     allIcs += 'END:VCALENDAR';
                     downloadIcs('我的待辦事項.ics', allIcs);
                     setStatus('📅 已匯出全部 ' + todos.length + ' 項待辦至行事曆檔案');
-                } catch (e) {
-                    setStatus('⚠️ 匯出全部失敗：' + e.message, true);
-                }
+                } catch (e) { setStatus('⚠️ 匯出全部失敗：' + e.message, true); }
             }
 
             // ---------- 智譜 AI 呼叫 ----------
@@ -549,10 +501,7 @@
                 console.log('🔵 呼叫智譜 AI，輸入:', text);
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + apiKey
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
                     body: JSON.stringify(payload),
                 });
                 if (!response.ok) {
@@ -562,22 +511,17 @@
                 }
                 const data = await response.json();
                 console.log('🟢 智譜回應:', data);
-                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                    throw new Error('智譜回應格式異常');
-                }
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('智譜回應格式異常');
                 let resultText = data.choices[0].message.content;
                 const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
                 if (jsonMatch) resultText = jsonMatch[1];
-                try {
-                    return JSON.parse(resultText);
-                } catch (_) {
-                    throw new Error('智譜回傳非 JSON 格式: ' + resultText);
-                }
+                try { return JSON.parse(resultText); }
+                catch (_) { throw new Error('智譜回傳非 JSON 格式: ' + resultText); }
             }
 
-            // ---------- 模擬解析（修正星期邏輯） ----------
+            // ---------- 模擬解析（修正：嚴格星期前綴，避免誤匹配） ----------
             function mockParse(text) {
-                console.log('🔧 使用模擬解析（支援自訂天數及下星期日）');
+                console.log('🔧 使用模擬解析（嚴格星期前綴）');
                 let summary = text;
                 let category = '其他';
                 let date = '';
@@ -623,8 +567,10 @@
                     day = parseInt(monthDayMatch[2]);
                 }
 
-                // ---- 星期幾解析（正確處理「下星期日」） ----
+                // ---- ★ 星期幾解析（嚴格前綴，避免誤匹配「明天」等） ----
                 const weekMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':7,'天':7 };
+
+                // 先嘗試有上下前綴的
                 const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
                 const weekMatch = text.match(weekRegex);
                 if (weekMatch) {
@@ -639,6 +585,19 @@
                         else if (prefix1 === '上') diff -= 7;
                         if (prefix2 === '下') diff += 7;
                         weekOffset = diff;
+                    }
+                } else {
+                    // ★ 無上下前綴但必須有「星期/禮拜/週」前綴，避免誤匹配
+                    const simpleWeekRegex = /(?:星期|禮拜|週)\s*([一二三四五六七日天])/;
+                    const simpleMatch = text.match(simpleWeekRegex);
+                    if (simpleMatch) {
+                        const dayNum = weekMap[simpleMatch[1]];
+                        if (dayNum) {
+                            let currentDay = today.getDay();
+                            let targetDay = dayNum % 7;
+                            let diff = (targetDay - currentDay + 7) % 7;
+                            weekOffset = diff;
+                        }
                     }
                 }
 
@@ -701,11 +660,7 @@
             async function handleAdd() {
                 if (isProcessing) return;
                 const rawText = todoInput.value.trim();
-                if (!rawText) {
-                    setStatus('⚠️ 請輸入待辦事項', true);
-                    todoInput.focus();
-                    return;
-                }
+                if (!rawText) { setStatus('⚠️ 請輸入待辦事項', true); todoInput.focus(); return; }
                 setLoading(true);
 
                 const useRealApi = useApi && apiKey;
@@ -730,11 +685,7 @@
                     }
 
                     const summary = parsed.summary || rawText;
-                    let category = parsed.category || '其他';
-                    // 如果 AI 回傳的分類不在 categories 中，我們仍然保存，但使用者可在編輯時調整
-                    // 但我們可以將其自動加入分類列表？為了不污染，我們只提示使用者可以添加
-                    // 這裡我們直接保存
-
+                    const category = parsed.category || '其他';
                     const date = parsed.date || '';
                     const time = parsed.time || '';
 
@@ -752,18 +703,19 @@
                 }
             }
 
-            // 填入範例
+            // ----- 填入範例 -----
             function fillDemo() {
                 const demos = [
+                    '明天早上10點開會',
+                    '後天下午3點看醫生',
+                    '星期六晚上9點開會',
                     '下星期日開會',
                     '5日後晚11點開會',
                     '聽晚9點開會',
-                    '明天早上十點要交房租',
                     '下週三下午三點開會',
                     '今日下午五點前繳交信用卡費',
                     '10月6日下午3點開會',
                     '2028年10月6日下午十點都更開會',
-                    '後日早上九點報到',
                 ];
                 const pick = demos[Math.floor(Math.random() * demos.length)];
                 todoInput.value = pick;
@@ -773,17 +725,10 @@
 
             // ----- API 與分類設定管理 -----
             function initConfig() {
-                // 載入分類
                 loadCategories();
                 renderCatList();
-
-                // 載入待辦資料
                 const loaded = loadFromLocal();
-                if (!loaded) {
-                    todos = [];
-                    nextId = 1;
-                    saveToLocal();
-                }
+                if (!loaded) { todos = []; nextId = 1; saveToLocal(); }
                 apiKeyInput.value = apiKey;
                 updateApiHint();
                 if (apiKey) useApi = true;
@@ -808,31 +753,19 @@
                 e.preventDefault();
                 const isHidden = apiConfig.style.display === 'none';
                 apiConfig.style.display = isHidden ? 'block' : 'none';
-                if (isHidden) {
-                    apiKeyInput.focus();
-                    apiKeyInput.select();
-                    setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」');
-                }
+                if (isHidden) { apiKeyInput.focus(); apiKeyInput.select(); setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」'); }
             }
 
             function saveApiKey() {
                 const key = apiKeyInput.value.trim();
                 if (!key) { setStatus('⚠️ 請先貼上 API Key', true); return; }
-                apiKey = key;
-                useApi = true;
-                saveToLocal();
-                updateApiHint();
-                apiConfig.style.display = 'none';
+                apiKey = key; useApi = true; saveToLocal(); updateApiHint(); apiConfig.style.display = 'none';
                 setStatus('✅ 智譜 AI API Key 已儲存（本地）');
                 console.log('🔑 已儲存新金鑰');
             }
 
             function clearApiKey() {
-                apiKey = '';
-                useApi = false;
-                apiKeyInput.value = '';
-                saveToLocal();
-                updateApiHint();
+                apiKey = ''; useApi = false; apiKeyInput.value = ''; saveToLocal(); updateApiHint();
                 setStatus('🧹 已清除 API Key，切換為模擬模式');
                 console.log('🧹 已清除金鑰');
             }
@@ -847,27 +780,21 @@
                 }
             }
 
-            // ----- 分類管理按鈕事件 -----
             function toggleCatPanel() {
                 const isHidden = catPanel.style.display === 'none';
                 catPanel.style.display = isHidden ? 'block' : 'none';
-                if (isHidden) {
-                    newCatInput.focus();
-                }
+                if (isHidden) newCatInput.focus();
             }
 
             function addCategory() {
                 const name = newCatInput.value.trim();
                 if (!name) { setStatus('⚠️ 請輸入分類名稱', true); return; }
-                if (categories.includes(name)) {
-                    setStatus('⚠️ 分類已存在', true);
-                    return;
-                }
+                if (categories.includes(name)) { setStatus('⚠️ 分類已存在', true); return; }
                 categories.push(name);
                 saveCategories();
                 renderCatList();
                 newCatInput.value = '';
-                render(); // 更新編輯下拉選單
+                render();
                 setStatus(`✅ 已新增分類「${name}」`);
             }
 
@@ -883,15 +810,20 @@
             saveApiKeyBtn.addEventListener('click', saveApiKey);
             clearApiKeyBtn.addEventListener('click', clearApiKey);
             togglePwdBtn.addEventListener('click', togglePwdVisibility);
-            document.addEventListener('keydown', e => { if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none'; if (e.key === 'Escape' && catPanel.style.display === 'block') catPanel.style.display = 'none'; });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    if (apiConfig.style.display === 'block') apiConfig.style.display = 'none';
+                    if (catPanel.style.display === 'block') catPanel.style.display = 'none';
+                }
+            });
 
             // ----- 啟動 -----
             initConfig();
 
             if (todos.length === 0) {
-                addTodo('下星期日開會', '會議', '', '');
-                addTodo('聽晚9點開會', '會議', '', '');
-                setStatus('👋 歡迎！已為你建立兩筆範例（含「下星期日」）');
+                addTodo('明天早上10點開會', '會議', '', '');
+                addTodo('後天下午3點看醫生', '會議', '', '');
+                setStatus('👋 歡迎！已為你建立「明天」和「後天」的範例');
             } else {
                 render();
                 setStatus(`📂 已載入 ${todos.length} 項待辦`);
