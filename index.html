@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 待辦助手 (智譜 AI) - 提醒功能</title>
+    <title>AI 待辦助手 (智譜 AI) - 過期歸納</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
@@ -56,6 +56,11 @@
         .todo-item .edit-btns .save-btn:hover { background: #6ee7b7; }
         .todo-item .edit-btns .cancel-btn { background: #fecaca; color: #b91c1c; }
         .todo-item .edit-btns .cancel-btn:hover { background: #fca5a5; }
+        .todo-divider { background: #f1f5f9; padding: 8px 16px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        .todo-divider.overdue { color: #b91c1c; background: #fef2f2; }
+        .todo-item.overdue { opacity: 0.6; font-style: italic; color: #64748b; }
+        .todo-item.overdue .summary { color: #64748b; }
+        .todo-item.overdue .category { opacity: 0.7; }
         .empty-state { padding: 48px 20px; text-align: center; color: #94a3b8; font-size: 15px; }
         .empty-state span { font-size: 40px; display: block; margin-bottom: 12px; }
         .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 10px; }
@@ -118,7 +123,7 @@
         </div>
 
         <div class="footer-actions">
-            <span class="count-badge">共 <strong id="todoCount">0</strong> 項</span>
+            <span class="count-badge" id="countBadge">共 <strong id="todoCount">0</strong> 項</span>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <button class="btn btn-success" id="exportAllBtn">📅 匯出全部</button>
                 <button class="btn btn-secondary" id="clearBtn">🗑️ 清空全部</button>
@@ -161,7 +166,7 @@
             'use strict';
 
             // ----- 版本控制 -----
-            const APP_VERSION = '3.4';
+            const APP_VERSION = '3.5';
 
             // ----- 狀態 -----
             let todos = [];
@@ -177,6 +182,7 @@
             const addBtn = document.getElementById('addBtn');
             const todoItems = document.getElementById('todoItems');
             const todoCount = document.getElementById('todoCount');
+            const countBadge = document.getElementById('countBadge');
             const statusMsg = document.getElementById('statusMsg');
             const spinner = document.getElementById('spinner');
             const clearBtn = document.getElementById('clearBtn');
@@ -205,6 +211,27 @@
                 addBtn.disabled = loading;
                 if (loading) spinner.classList.add('active');
                 else spinner.classList.remove('active');
+            }
+
+            // ----- 過期判斷 -----
+            function isOverdue(todo) {
+                if (!todo.date) return false;
+                const parts = todo.date.split('-');
+                if (parts.length !== 3) return false;
+                let targetDate;
+                if (todo.time) {
+                    const timeParts = todo.time.split(':');
+                    if (timeParts.length !== 2) return false;
+                    targetDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), parseInt(timeParts[0]), parseInt(timeParts[1]), 0);
+                } else {
+                    // 只有日期，比較日期是否小於今天
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                    return target < today;
+                }
+                if (isNaN(targetDate.getTime())) return false;
+                return targetDate < new Date();
             }
 
             // ----- 分類管理 -----
@@ -257,94 +284,137 @@
                 return false;
             }
 
-            // ----- 渲染 -----
+            // ----- 渲染（分組：未過期 / 已過期） -----
             function render() {
                 todoItems.innerHTML = '';
                 if (todos.length === 0) {
                     todoItems.innerHTML = `<div class="empty-state"><span>📋</span>還沒有待辦事項<br /><span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span></div>`;
                     todoCount.textContent = '0';
+                    countBadge.innerHTML = `共 <strong id="todoCount">0</strong> 項`;
                     return;
                 }
-                const sorted = [...todos].sort((a, b) => b.createdAt - a.createdAt);
-                for (const item of sorted) {
-                    const div = document.createElement('div');
-                    div.className = 'todo-item';
-                    div.dataset.id = item.id;
 
-                    if (editingId === item.id) {
-                        let catOptions = '';
-                        const allCats = [...categories];
-                        const currentCat = item.category || '其他';
-                        if (!allCats.includes(currentCat)) allCats.push(currentCat);
-                        allCats.forEach(c => {
-                            const selected = c === currentCat ? 'selected' : '';
-                            const isDeleted = !categories.includes(c) && c === currentCat;
-                            const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
-                            catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
-                        });
-                        div.innerHTML = `
-                            <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
-                            <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
-                            <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
-                            <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
-                            <span></span>
-                            <div class="edit-btns">
-                                <button class="save-btn" data-id="${item.id}">💾 儲存</button>
-                                <button class="cancel-btn" data-id="${item.id}">❌ 取消</button>
-                            </div>
-                            <span></span>
-                        `;
-                        div.querySelector('.save-btn').addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            const id = Number(this.dataset.id);
-                            saveEdit(id);
-                        });
-                        div.querySelector('.cancel-btn').addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            editingId = null;
-                            render();
-                        });
-                        const inputs = div.querySelectorAll('input, select');
-                        inputs.forEach(inp => {
-                            inp.addEventListener('keydown', function(e) {
-                                if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
-                                else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
-                            });
-                        });
-                        setTimeout(() => {
-                            const summaryInput = document.getElementById(`edit-summary-${item.id}`);
-                            if (summaryInput) summaryInput.focus();
-                        }, 50);
-                    } else {
-                        const cat = item.category || '其他';
-                        const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
-                        const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
-                        const bg = colors[cat] || '#f3f4f6';
-                        const tc = textColors[cat] || '#4b5563';
-                        div.innerHTML = `
-                            <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
-                            <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
-                            <span class="date">${escapeHtml(item.date || '—')}</span>
-                            <span class="time">${escapeHtml(item.time || '—')}</span>
-                            <button class="cal-btn" data-id="${item.id}" title="加入行事曆">📅</button>
-                            <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
-                            <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
-                        `;
-                        div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
-                        div.querySelector('.cal-btn').addEventListener('click', function() {
-                            const todo = todos.find(t => t.id === Number(this.dataset.id));
-                            if (todo) exportSingleTodo(todo);
-                        });
-                        div.querySelector('.edit-btn').addEventListener('click', function() {
-                            const id = Number(this.dataset.id);
-                            editingId = id;
-                            render();
-                        });
-                    }
-                    todoItems.appendChild(div);
+                // 分組
+                const overdue = [];
+                const upcoming = [];
+                todos.forEach(t => {
+                    if (isOverdue(t)) overdue.push(t);
+                    else upcoming.push(t);
+                });
+
+                // 排序：未過期按時間升序，過期按時間降序（最近的先）
+                upcoming.sort((a, b) => {
+                    const da = a.date || '1970-01-01';
+                    const db = b.date || '1970-01-01';
+                    if (da !== db) return da.localeCompare(db);
+                    return (a.time || '00:00').localeCompare(b.time || '00:00');
+                });
+                overdue.sort((a, b) => {
+                    const da = a.date || '1970-01-01';
+                    const db = b.date || '1970-01-01';
+                    if (da !== db) return db.localeCompare(da);
+                    return (b.time || '00:00').localeCompare(a.time || '00:00');
+                });
+
+                const total = todos.length;
+                const overdueCount = overdue.length;
+                todoCount.textContent = total;
+                countBadge.innerHTML = `共 <strong>${total}</strong> 項${overdueCount > 0 ? `（已過期 <span style="color:#b91c1c;">${overdueCount}</span> 項）` : ''}`;
+
+                // 渲染未過期
+                if (upcoming.length > 0) {
+                    upcoming.forEach(item => renderTodoItem(item, false));
                 }
-                todoCount.textContent = todos.length;
-                saveToLocal();
+
+                // 渲染已過期
+                if (overdue.length > 0) {
+                    const divider = document.createElement('div');
+                    divider.className = 'todo-divider overdue';
+                    divider.textContent = `📋 已過期事項 (${overdue.length} 項)`;
+                    todoItems.appendChild(divider);
+                    overdue.forEach(item => renderTodoItem(item, true));
+                }
+            }
+
+            // 渲染單個待辦項目（過期標記）
+            function renderTodoItem(item, isOverdueFlag) {
+                const div = document.createElement('div');
+                div.className = 'todo-item';
+                if (isOverdueFlag) div.classList.add('overdue');
+                div.dataset.id = item.id;
+
+                if (editingId === item.id) {
+                    // 編輯模式（與之前相同）
+                    let catOptions = '';
+                    const allCats = [...categories];
+                    const currentCat = item.category || '其他';
+                    if (!allCats.includes(currentCat)) allCats.push(currentCat);
+                    allCats.forEach(c => {
+                        const selected = c === currentCat ? 'selected' : '';
+                        const isDeleted = !categories.includes(c) && c === currentCat;
+                        const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
+                        catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
+                    });
+                    div.innerHTML = `
+                        <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
+                        <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
+                        <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
+                        <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
+                        <span></span>
+                        <div class="edit-btns">
+                            <button class="save-btn" data-id="${item.id}">💾 儲存</button>
+                            <button class="cancel-btn" data-id="${item.id}">❌ 取消</button>
+                        </div>
+                        <span></span>
+                    `;
+                    div.querySelector('.save-btn').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const id = Number(this.dataset.id);
+                        saveEdit(id);
+                    });
+                    div.querySelector('.cancel-btn').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        editingId = null;
+                        render();
+                    });
+                    const inputs = div.querySelectorAll('input, select');
+                    inputs.forEach(inp => {
+                        inp.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
+                            else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
+                        });
+                    });
+                    setTimeout(() => {
+                        const summaryInput = document.getElementById(`edit-summary-${item.id}`);
+                        if (summaryInput) summaryInput.focus();
+                    }, 50);
+                } else {
+                    const cat = item.category || '其他';
+                    const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
+                    const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
+                    const bg = colors[cat] || '#f3f4f6';
+                    const tc = textColors[cat] || '#4b5563';
+                    div.innerHTML = `
+                        <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
+                        <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
+                        <span class="date">${escapeHtml(item.date || '—')}</span>
+                        <span class="time">${escapeHtml(item.time || '—')}</span>
+                        <button class="cal-btn" data-id="${item.id}" title="加入行事曆">📅</button>
+                        <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
+                        <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
+                    `;
+                    div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
+                    div.querySelector('.cal-btn').addEventListener('click', function() {
+                        const todo = todos.find(t => t.id === Number(this.dataset.id));
+                        if (todo) exportSingleTodo(todo);
+                    });
+                    div.querySelector('.edit-btn').addEventListener('click', function() {
+                        const id = Number(this.dataset.id);
+                        editingId = id;
+                        render();
+                    });
+                }
+                todoItems.appendChild(div);
             }
 
             function saveEdit(id) {
@@ -361,7 +431,6 @@
                     todo.category = newCategory;
                     todo.date = dateInput.value;
                     todo.time = timeInput.value;
-                    // 編輯後重置提醒標記，讓它重新計算
                     todo.reminded = false;
                     editingId = null;
                     render();
@@ -397,7 +466,7 @@
                 }
             }
 
-            // ----- 行事曆匯出 -----
+            // ----- 行事曆匯出（同前） -----
             function generateIcsEvent(todo) {
                 const now = new Date();
                 const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
@@ -521,9 +590,9 @@
                 catch (_) { throw new Error('智譜回傳非 JSON 格式: ' + resultText); }
             }
 
-            // ---------- 模擬解析（嚴格星期前綴） ----------
+            // ---------- 模擬解析 ----------
             function mockParse(text) {
-                console.log('🔧 使用模擬解析（嚴格星期前綴）');
+                console.log('🔧 使用模擬解析');
                 let summary = text;
                 let category = '其他';
                 let date = '';
@@ -740,11 +809,9 @@
 
             function checkReminders() {
                 const now = new Date();
-                // 遍歷所有待辦事項
                 for (const todo of todos) {
                     if (todo.reminded) continue;
                     if (!todo.date || !todo.time) continue;
-                    // 組合日期時間
                     const parts = todo.date.split('-');
                     if (parts.length !== 3) continue;
                     const timeParts = todo.time.split(':');
@@ -758,23 +825,16 @@
                         0
                     );
                     if (isNaN(target.getTime())) continue;
-                    // 計算距離目標時間的毫秒數
                     const diffMs = target.getTime() - now.getTime();
-                    // 如果目標時間已過，則略過（但若已過且未提醒，可設定為已提醒）
                     if (diffMs < 0) {
-                        // 如果已過期但尚未提醒，可標記為已提醒避免重複
                         todo.reminded = true;
                         saveToLocal();
                         continue;
                     }
-                    // 若在 5 分鐘內（300000 ms）
                     if (diffMs <= 300000) {
-                        // 觸發通知
                         sendNotification(todo);
                         todo.reminded = true;
                         saveToLocal();
-                        // 立即更新清單（但無需重新渲染，只改狀態）
-                        // 不過我們可選擇重新渲染以更新提醒圖示（可選）
                     }
                 }
             }
@@ -786,7 +846,6 @@
                 }
                 const title = `⏰ 待辦提醒：${todo.summary}`;
                 const body = `時間：${todo.date} ${todo.time}\n分類：${todo.category}`;
-                const icon = '🔔'; // 可改為圖片URL
                 try {
                     const notification = new Notification(title, {
                         body: body,
@@ -798,7 +857,6 @@
                         window.focus();
                         this.close();
                     };
-                    // 手機震動（如果支援）
                     if (navigator.vibrate) {
                         navigator.vibrate(200);
                     }
@@ -807,12 +865,11 @@
                 }
             }
 
-            // 啟動定時檢查
             function startReminderChecker() {
                 if (notificationInterval) clearInterval(notificationInterval);
                 notificationInterval = setInterval(() => {
                     checkReminders();
-                }, 30000); // 每30秒檢查一次
+                }, 30000);
             }
 
             // ----- API 與分類設定管理 -----
@@ -827,10 +884,8 @@
                 console.log('🔑 API Key:', apiKey ? '已設定' : '無');
                 console.log('🧠 useApi:', useApi);
 
-                // 請求通知權限並啟動提醒檢查
                 requestNotificationPermission();
                 startReminderChecker();
-                // 首次立即檢查一次
                 setTimeout(checkReminders, 2000);
             }
 
@@ -919,17 +974,27 @@
             initConfig();
 
             if (todos.length === 0) {
-                // 建立一個即將到來的範例（例如 5 分鐘後的待辦，方便測試提醒）
+                // 建立一個過期範例（昨天）和一個未來範例
                 const now = new Date();
-                now.setMinutes(now.getMinutes() + 4);
-                const y = now.getFullYear();
-                const m = String(now.getMonth() + 1).padStart(2, '0');
-                const d = String(now.getDate()).padStart(2, '0');
-                const h = String(now.getHours()).padStart(2, '0');
-                const min = String(now.getMinutes()).padStart(2, '0');
-                addTodo('測試提醒（5分鐘後）', '會議', `${y}-${m}-${d}`, `${h}:${min}`);
-                addTodo('明天早上10點開會', '會議', '', '');
-                setStatus('👋 歡迎！已建立一個「測試提醒」範例，5分鐘後會通知您');
+                const yesterday = new Date(now);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yY = yesterday.getFullYear();
+                const yM = String(yesterday.getMonth() + 1).padStart(2, '0');
+                const yD = String(yesterday.getDate()).padStart(2, '0');
+                const yH = String(yesterday.getHours()).padStart(2, '0');
+                const yMin = String(yesterday.getMinutes()).padStart(2, '0');
+                addTodo('已過期範例（昨天）', '會議', `${yY}-${yM}-${yD}`, `${yH}:${yMin}`);
+
+                const future = new Date(now);
+                future.setMinutes(future.getMinutes() + 10);
+                const fY = future.getFullYear();
+                const fM = String(future.getMonth() + 1).padStart(2, '0');
+                const fD = String(future.getDate()).padStart(2, '0');
+                const fH = String(future.getHours()).padStart(2, '0');
+                const fMin = String(future.getMinutes()).padStart(2, '0');
+                addTodo('未來範例（10分鐘後）', '會議', `${fY}-${fM}-${fD}`, `${fH}:${fMin}`);
+
+                setStatus('👋 歡迎！已建立「過期」與「未來」範例，過期事項會自動歸納');
             } else {
                 render();
                 setStatus(`📂 已載入 ${todos.length} 項待辦`);
