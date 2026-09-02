@@ -5,369 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 待辦助手 (智譜 AI)</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .container {
-            max-width: 720px;
-            width: 100%;
-            background: #ffffff;
-            border-radius: 24px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-            padding: 32px 28px;
-        }
-        h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 6px;
-        }
-        h1 small {
-            font-size: 14px;
-            font-weight: 400;
-            color: #94a3b8;
-            margin-left: auto;
-        }
-        .subtitle {
-            color: #64748b;
-            font-size: 15px;
-            border-left: 4px solid #818cf8;
-            padding-left: 14px;
-            margin-bottom: 28px;
-            line-height: 1.5;
-        }
-        .input-area {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 28px;
-        }
-        .input-row {
-            display: flex;
-            gap: 12px;
-        }
-        .input-row input {
-            flex: 1;
-            padding: 14px 18px;
-            border: 2px solid #e2e8f0;
-            border-radius: 14px;
-            font-size: 16px;
-            outline: none;
-            transition: border 0.2s, box-shadow 0.2s;
-            background: #f8fafc;
-        }
-        .input-row input:focus {
-            border-color: #818cf8;
-            box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
-            background: #ffffff;
-        }
-        .input-row input::placeholder {
-            color: #94a3b8;
-        }
-        .btn {
-            padding: 14px 28px;
-            border: none;
-            border-radius: 14px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-        .btn-primary {
-            background: #818cf8;
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background: #6366f1;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(129, 140, 248, 0.35);
-        }
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #475569;
-        }
-        .btn-secondary:hover {
-            background: #cbd5e1;
-        }
-        .btn-success {
-            background: #a7f3d0;
-            color: #065f46;
-        }
-        .btn-success:hover {
-            background: #6ee7b7;
-        }
-        .btn-danger {
-            background: #fecaca;
-            color: #b91c1c;
-        }
-        .btn-danger:hover {
-            background: #fca5a5;
-        }
-        .status-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 14px;
-            color: #64748b;
-            min-height: 28px;
-            flex-wrap: wrap;
-        }
-        .status-bar .spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #e2e8f0;
-            border-top: 3px solid #818cf8;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-        .status-bar .spinner.active {
-            display: inline-block;
-        }
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-        .todo-list {
-            margin-top: 16px;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid #eef2f6;
-        }
-        .todo-header {
-            display: grid;
-            grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr;
-            background: #f1f4f9;
-            padding: 12px 16px;
-            font-weight: 600;
-            font-size: 13px;
-            color: #475569;
-            letter-spacing: 0.3px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .todo-item {
-            display: grid;
-            grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr;
-            padding: 14px 16px;
-            background: #ffffff;
-            border-bottom: 1px solid #f1f5f9;
-            align-items: center;
-            font-size: 15px;
-            transition: background 0.15s;
-            gap: 4px;
-        }
-        .todo-item:last-child {
-            border-bottom: none;
-        }
-        .todo-item:hover {
-            background: #fafbff;
-        }
-        .todo-item .summary {
-            font-weight: 500;
-            color: #0f172a;
-            word-break: break-word;
-        }
-        .todo-item .category {
-            font-size: 13px;
-            background: #eef2ff;
-            color: #4338ca;
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
-            width: fit-content;
-        }
-        .todo-item .date,
-        .todo-item .time {
-            color: #334155;
-            font-feature-settings: "tnum";
-        }
-        .todo-item .cal-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 8px;
-            transition: background 0.2s;
-            color: #0ea5e9;
-            justify-self: center;
-        }
-        .todo-item .cal-btn:hover {
-            background: #e0f2fe;
-        }
-        .todo-item .delete-btn {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            cursor: pointer;
-            font-size: 18px;
-            transition: color 0.2s;
-            padding: 4px 6px;
-            border-radius: 8px;
-            justify-self: end;
-        }
-        .todo-item .delete-btn:hover {
-            color: #ef4444;
-            background: #fef2f2;
-        }
-        .empty-state {
-            padding: 48px 20px;
-            text-align: center;
-            color: #94a3b8;
-            font-size: 15px;
-        }
-        .empty-state span {
-            font-size: 40px;
-            display: block;
-            margin-bottom: 12px;
-        }
-        .footer-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 18px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .count-badge {
-            font-size: 14px;
-            color: #64748b;
-        }
-        .count-badge strong {
-            color: #1e293b;
-        }
-        .api-hint {
-            font-size: 13px;
-            color: #94a3b8;
-            margin-top: 14px;
-            padding: 14px 18px;
-            background: #f8fafc;
-            border-radius: 12px;
-            border: 1px dashed #d1d5db;
-            line-height: 1.7;
-        }
-        .api-hint a {
-            color: #6366f1;
-            text-decoration: none;
-        }
-        .api-hint a:hover {
-            text-decoration: underline;
-        }
-        .api-config-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .api-config-row input[type="text"] {
-            flex: 1;
-            padding: 10px 14px;
-            border: 2px solid #d1d5db;
-            border-radius: 10px;
-            font-size: 14px;
-            outline: none;
-            min-width: 200px;
-            background: #ffffff;
-        }
-        .api-config-row input[type="text"]:focus {
-            border-color: #818cf8;
-            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
-        }
-        .toggle-pwd-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 6px 10px;
-            border-radius: 8px;
-            color: #64748b;
-            transition: background 0.2s;
-        }
-        .toggle-pwd-btn:hover {
-            background: #e2e8f0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { max-width: 720px; width: 100%; background: #ffffff; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.08); padding: 32px 28px; }
+        h1 { font-size: 26px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        h1 small { font-size: 14px; font-weight: 400; color: #94a3b8; margin-left: auto; }
+        .subtitle { color: #64748b; font-size: 15px; border-left: 4px solid #818cf8; padding-left: 14px; margin-bottom: 28px; line-height: 1.5; }
+        .input-area { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+        .input-row { display: flex; gap: 12px; }
+        .input-row input { flex: 1; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 14px; font-size: 16px; outline: none; transition: border 0.2s, box-shadow 0.2s; background: #f8fafc; }
+        .input-row input:focus { border-color: #818cf8; box-shadow: 0 0 0 4px rgba(129,140,248,0.15); background: #ffffff; }
+        .input-row input::placeholder { color: #94a3b8; }
+        .btn { padding: 14px 28px; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .btn-primary { background: #818cf8; color: #fff; }
+        .btn-primary:hover { background: #6366f1; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(129,140,248,0.35); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-success { background: #a7f3d0; color: #065f46; }
+        .btn-success:hover { background: #6ee7b7; }
+        .btn-danger { background: #fecaca; color: #b91c1c; }
+        .btn-danger:hover { background: #fca5a5; }
+        .status-bar { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #64748b; min-height: 28px; flex-wrap: wrap; }
+        .status-bar .spinner { display: none; width: 20px; height: 20px; border: 3px solid #e2e8f0; border-top: 3px solid #818cf8; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        .status-bar .spinner.active { display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .todo-list { margin-top: 16px; border-radius: 16px; overflow: hidden; border: 1px solid #eef2f6; }
+        .todo-header { display: grid; grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr; background: #f1f4f9; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569; letter-spacing: 0.3px; border-bottom: 1px solid #e2e8f0; }
+        .todo-item { display: grid; grid-template-columns: 3fr 1.2fr 1.2fr 1fr 0.8fr 0.5fr; padding: 14px 16px; background: #ffffff; border-bottom: 1px solid #f1f5f9; align-items: center; font-size: 15px; transition: background 0.15s; gap: 4px; }
+        .todo-item:last-child { border-bottom: none; }
+        .todo-item:hover { background: #fafbff; }
+        .todo-item .summary { font-weight: 500; color: #0f172a; word-break: break-word; }
+        .todo-item .category { font-size: 13px; background: #eef2ff; color: #4338ca; padding: 4px 12px; border-radius: 20px; display: inline-block; width: fit-content; }
+        .todo-item .date, .todo-item .time { color: #334155; font-feature-settings: "tnum"; }
+        .todo-item .cal-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px 6px; border-radius: 8px; transition: background 0.2s; color: #0ea5e9; justify-self: center; }
+        .todo-item .cal-btn:hover { background: #e0f2fe; }
+        .todo-item .delete-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; transition: color 0.2s; padding: 4px 6px; border-radius: 8px; justify-self: end; }
+        .todo-item .delete-btn:hover { color: #ef4444; background: #fef2f2; }
+        .empty-state { padding: 48px 20px; text-align: center; color: #94a3b8; font-size: 15px; }
+        .empty-state span { font-size: 40px; display: block; margin-bottom: 12px; }
+        .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 10px; }
+        .count-badge { font-size: 14px; color: #64748b; }
+        .count-badge strong { color: #1e293b; }
+        .api-hint { font-size: 13px; color: #94a3b8; margin-top: 14px; padding: 14px 18px; background: #f8fafc; border-radius: 12px; border: 1px dashed #d1d5db; line-height: 1.7; }
+        .api-hint a { color: #6366f1; text-decoration: none; }
+        .api-hint a:hover { text-decoration: underline; }
+        .api-config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .api-config-row input[type="text"] { flex: 1; padding: 10px 14px; border: 2px solid #d1d5db; border-radius: 10px; font-size: 14px; outline: none; min-width: 200px; background: #ffffff; }
+        .api-config-row input[type="text"]:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
+        .toggle-pwd-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 8px; color: #64748b; transition: background 0.2s; }
+        .toggle-pwd-btn:hover { background: #e2e8f0; }
         @media (max-width: 600px) {
-            .container {
-                padding: 20px 16px;
-            }
-            .input-row {
-                flex-direction: column;
-            }
-            .todo-header {
-                display: none;
-            }
-            .todo-item {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px 12px;
-                padding: 16px;
-                border-bottom: 1px solid #f1f5f9;
-            }
-            .todo-item .summary {
-                width: 100%;
-                font-size: 16px;
-                margin-bottom: 4px;
-            }
-            .todo-item .category {
-                font-size: 12px;
-            }
-            .todo-item .date,
-            .todo-item .time {
-                font-size: 14px;
-            }
-            .todo-item .cal-btn {
-                margin-left: auto;
-                font-size: 20px;
-            }
-            .todo-item .delete-btn {
-                margin-left: 0;
-            }
-            .footer-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .api-config-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
+            .container { padding: 20px 16px; }
+            .input-row { flex-direction: column; }
+            .todo-header { display: none; }
+            .todo-item { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 16px; border-bottom: 1px solid #f1f5f9; }
+            .todo-item .summary { width: 100%; font-size: 16px; margin-bottom: 4px; }
+            .todo-item .category { font-size: 12px; }
+            .todo-item .date, .todo-item .time { font-size: 14px; }
+            .todo-item .cal-btn { margin-left: auto; font-size: 20px; }
+            .todo-item .delete-btn { margin-left: 0; }
+            .footer-actions { flex-direction: column; align-items: stretch; }
+            .api-config-row { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>
-            ✅ 待辦助手
-            <small>智譜 AI</small>
-        </h1>
-        <div class="subtitle">
-            輸入一句話（支援粵語），AI 自動拆解成 事項 · 分類 · 日期 · 時間
-        </div>
+        <h1>✅ 待辦助手 <small>智譜 AI</small></h1>
+        <div class="subtitle">輸入一句話（支援粵語），AI 自動拆解成 事項 · 分類 · 日期 · 時間</div>
 
         <div class="input-area">
             <div class="input-row">
-                <input type="text" id="todoInput" placeholder="例如：聽晚9點開會" autofocus />
+                <input type="text" id="todoInput" placeholder="例如：下星期日開會" autofocus />
                 <button class="btn btn-primary" id="addBtn">➕ 新增</button>
             </div>
             <div class="status-bar">
@@ -382,11 +92,7 @@
                 <span style="text-align:center;">📅 日曆</span><span></span>
             </div>
             <div id="todoItems">
-                <div class="empty-state">
-                    <span>📋</span>
-                    還沒有待辦事項<br />
-                    <span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span>
-                </div>
+                <div class="empty-state"><span>📋</span>還沒有待辦事項<br /><span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span></div>
             </div>
         </div>
 
@@ -422,14 +128,13 @@
         (function() {
             'use strict';
 
-            // ----- 狀態 -----
             let todos = [];
             let nextId = 1;
             let isProcessing = false;
-            let useApi = true; // 是否啟用 AI API（否則降級模擬）
-            let apiKey = ''; // 使用者儲存的 API Key
+            let useApi = true;
+            let apiKey = '';
 
-            // ----- DOM 參照 -----
+            // DOM 參照
             const todoInput = document.getElementById('todoInput');
             const addBtn = document.getElementById('addBtn');
             const todoItems = document.getElementById('todoItems');
@@ -447,26 +152,20 @@
             const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
             const togglePwdBtn = document.getElementById('togglePwdBtn');
 
-            // ----- 輔助函式 -----
+            // 輔助函式
             function setStatus(msg, isError = false) {
                 statusMsg.textContent = msg;
                 statusMsg.style.color = isError ? '#b91c1c' : '#64748b';
             }
-
             function setLoading(loading) {
                 isProcessing = loading;
                 addBtn.disabled = loading;
                 if (loading) spinner.classList.add('active');
                 else spinner.classList.remove('active');
             }
-
-            // ----- 儲存 / 載入 localStorage -----
             function saveToLocal() {
-                try {
-                    localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey }));
-                } catch (_) {}
+                try { localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey })); } catch (_) {}
             }
-
             function loadFromLocal() {
                 try {
                     const raw = localStorage.getItem('aiTodoData');
@@ -483,17 +182,11 @@
                 return false;
             }
 
-            // ----- 渲染待辦清單 -----
+            // 渲染
             function render() {
                 todoItems.innerHTML = '';
                 if (todos.length === 0) {
-                    todoItems.innerHTML = `
-                        <div class="empty-state">
-                            <span>📋</span>
-                            還沒有待辦事項<br />
-                            <span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span>
-                        </div>
-                    `;
+                    todoItems.innerHTML = `<div class="empty-state"><span>📋</span>還沒有待辦事項<br /><span style="font-size:14px;color:#cbd5e1;">試試在上方輸入一句話</span></div>`;
                     todoCount.textContent = '0';
                     return;
                 }
@@ -507,15 +200,13 @@
                     const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
                     div.innerHTML = `
                         <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
-                        <span class="category" style="background:${colors[cat] || '#f3f4f6'};color:${textColors[cat] || '#4b5563'};">${escapeHtml(cat)}</span>
+                        <span class="category" style="background:${colors[cat]||'#f3f4f6'};color:${textColors[cat]||'#4b5563'};">${escapeHtml(cat)}</span>
                         <span class="date">${escapeHtml(item.date || '—')}</span>
                         <span class="time">${escapeHtml(item.time || '—')}</span>
                         <button class="cal-btn" data-id="${item.id}" title="加入行事曆">📅</button>
                         <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
                     `;
-                    div.querySelector('.delete-btn').addEventListener('click', function() {
-                        deleteTodo(Number(this.dataset.id));
-                    });
+                    div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
                     div.querySelector('.cal-btn').addEventListener('click', function() {
                         const todo = todos.find(t => t.id === Number(this.dataset.id));
                         if (todo) exportSingleTodo(todo);
@@ -525,34 +216,23 @@
                 todoCount.textContent = todos.length;
                 saveToLocal();
             }
-
             function escapeHtml(text) {
                 if (!text) return '';
-                return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
-                    "'": '&#039;' } [m]));
+                return String(text).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
             }
 
-            // ----- CRUD -----
+            // CRUD
             function addTodo(summary, category, date, time) {
-                const todo = {
-                    id: nextId++,
-                    summary: summary.trim() || '（無標題）',
-                    category: category || '其他',
-                    date: date || '',
-                    time: time || '',
-                    createdAt: Date.now()
-                };
+                const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now() };
                 todos.push(todo);
                 render();
                 return todo;
             }
-
             function deleteTodo(id) {
                 todos = todos.filter(t => t.id !== id);
                 render();
                 setStatus('🗑️ 已刪除一項');
             }
-
             function clearAll() {
                 if (!todos.length) return;
                 if (confirm('確定要刪除所有待辦事項嗎？')) {
@@ -562,12 +242,10 @@
                 }
             }
 
-            // ----- 行事曆匯出 -----
+            // 行事曆匯出（同前）
             function generateIcsEvent(todo) {
                 const now = new Date();
-                const y = now.getFullYear(),
-                    m = String(now.getMonth() + 1).padStart(2, '0'),
-                    d = String(now.getDate()).padStart(2, '0');
+                const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
                 if (todo.date) {
                     const parts = todo.date.split('-');
                     if (parts.length === 3) {
@@ -575,19 +253,17 @@
                         if (todo.time) {
                             const [H, Min] = todo.time.split(':');
                             const start = Y + M + D + 'T' + H + Min + '00';
-                            let eh = parseInt(H) + 1,
-                                em = Min;
+                            let eh = parseInt(H)+1, em = Min;
                             if (eh >= 24) eh -= 24;
-                            const end = Y + M + D + 'T' + String(eh).padStart(2, '0') + em + '00';
+                            const end = Y + M + D + 'T' + String(eh).padStart(2,'0') + em + '00';
                             return { start, end, allDay: false };
                         }
-                        return { start: Y + M + D, end: Y + M + D, allDay: true };
+                        return { start: Y+M+D, end: Y+M+D, allDay: true };
                     }
                 }
                 const today = y + m + d;
                 return { start: today, end: today, allDay: true };
             }
-
             function buildIcsForTodo(todo) {
                 const dt = generateIcsEvent(todo);
                 const uid = 'todo-' + todo.id + '-' + Date.now() + '@aitodo';
@@ -595,19 +271,15 @@
                 ics += 'BEGIN:VEVENT\r\nUID:' + uid + '\r\nSUMMARY:' + (todo.summary || '待辦事項') + '\r\n';
                 if (dt.allDay) {
                     ics += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
-                    const endDate = new Date(dt.start.slice(0, 4), parseInt(dt.start.slice(4, 6)) - 1, parseInt(dt.start
-                    .slice(6, 8)) + 1);
-                    const endStr = endDate.getFullYear() + String(endDate.getMonth() + 1).padStart(2, '0') + String(endDate
-                        .getDate()).padStart(2, '0');
+                    const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                    const endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0');
                     ics += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
                 } else {
                     ics += 'DTSTART:' + dt.start + '\r\nDTEND:' + dt.end + '\r\n';
                 }
-                ics += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category +
-                '\r\nEND:VEVENT\r\nEND:VCALENDAR';
+                ics += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\nEND:VEVENT\r\nEND:VCALENDAR';
                 return ics;
             }
-
             function downloadIcs(filename, content) {
                 const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
                 const link = document.createElement('a');
@@ -618,7 +290,6 @@
                 document.body.removeChild(link);
                 setTimeout(() => URL.revokeObjectURL(link.href), 1000);
             }
-
             function exportSingleTodo(todo) {
                 try {
                     const ics = buildIcsForTodo(todo);
@@ -629,12 +300,8 @@
                     setStatus('⚠️ 匯出失敗：' + e.message, true);
                 }
             }
-
             function exportAllTodos() {
-                if (!todos.length) {
-                    setStatus('⚠️ 沒有待辦事項可匯出', true);
-                    return;
-                }
+                if (!todos.length) { setStatus('⚠️ 沒有待辦事項可匯出', true); return; }
                 try {
                     let allIcs = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//AI待辦助手//iCalendar 1.0//ZH-TW\r\n';
                     for (const todo of todos) {
@@ -643,16 +310,13 @@
                         allIcs += 'BEGIN:VEVENT\r\nUID:' + uid + '\r\nSUMMARY:' + (todo.summary || '待辦事項') + '\r\n';
                         if (dt.allDay) {
                             allIcs += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
-                            const endDate = new Date(dt.start.slice(0, 4), parseInt(dt.start.slice(4, 6)) - 1, parseInt(dt
-                                .start.slice(6, 8)) + 1);
-                            const endStr = endDate.getFullYear() + String(endDate.getMonth() + 1).padStart(2, '0') +
-                                String(endDate.getDate()).padStart(2, '0');
+                            const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                            const endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0');
                             allIcs += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
                         } else {
                             allIcs += 'DTSTART:' + dt.start + '\r\nDTEND:' + dt.end + '\r\n';
                         }
-                        allIcs += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category +
-                            '\r\nEND:VEVENT\r\n';
+                        allIcs += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\nEND:VEVENT\r\n';
                     }
                     allIcs += 'END:VCALENDAR';
                     downloadIcs('我的待辦事項.ics', allIcs);
@@ -662,25 +326,23 @@
                 }
             }
 
-            // =============================================================
-            //  【智譜 AI API 呼叫】
-            // =============================================================
+            // ---------- 智譜 AI 呼叫 ----------
             async function callZhipuAPI(text) {
                 if (!apiKey) throw new Error('尚未設定 API Key');
                 const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
                 const today = new Date().toISOString().split('T')[0];
                 const systemPrompt = `你是行政助理，負責從訊息中抽取待辦重點，今天是 ${today}。
-            用戶可能使用繁體中文或粵語，請正確理解。
-            規則：
-            - 日期一律轉成 YYYY-MM-DD；「明天」「聽晚」等相對日期依今天推算。
-            - 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
-            - category 欄位只能填「繳費」「會議」「其他」三選一。
-            - 找不到的欄位一律回空字串，不要自行編造內容。
-            - 只回傳 JSON，不要加任何說明文字。
-            輸出格式固定為：
-            {"summary":"","category":"","date":"","time":""}`;
+用戶可能使用繁體中文或粵語，請正確理解。
+規則：
+- 日期一律轉成 YYYY-MM-DD；「明天」「聽晚」等相對日期依今天推算。
+- 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
+- category 欄位只能填「繳費」「會議」「其他」三選一。
+- 找不到的欄位一律回空字串，不要自行編造內容。
+- 只回傳 JSON，不要加任何說明文字。
+輸出格式固定為：
+{"summary":"","category":"","date":"","time":""}`;
                 const payload = {
-                    model: 'glm-4-flash', // 免費模型，速度與準確度兼顧
+                    model: 'glm-4-flash',
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: text }
@@ -707,7 +369,6 @@
                     throw new Error('智譜回應格式異常');
                 }
                 let resultText = data.choices[0].message.content;
-                // 若回應被 markdown 包裹則提取
                 const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
                 if (jsonMatch) resultText = jsonMatch[1];
                 try {
@@ -717,9 +378,9 @@
                 }
             }
 
-            // ----- 模擬解析（支援粵語，當 API 失敗或未啟用時使用） -----
+            // ---------- 模擬解析（修正星期邏輯，支援「下星期日」） ----------
             function mockParse(text) {
-                console.log('🔧 使用模擬解析（支援粵語）');
+                console.log('🔧 使用模擬解析（支援自訂天數及下星期日）');
                 let summary = text;
                 let category = '其他';
                 let date = '';
@@ -733,24 +394,16 @@
                 let dayOffset = null;
                 let weekOffset = null;
                 let yearOffset = 0;
-                let month = null,
-                    day = null;
+                let month = null, day = null;
                 let pureYear = null;
 
-                const yearMatch = text.match(/(\d{4})\s*年/);
-                if (yearMatch) pureYear = parseInt(yearMatch[1]);
+                // ---- 匹配「X日後」或「X天後」 ----
+                const daysAfterMatch = text.match(/(\d+)\s*[日天]\s*後/);
+                if (daysAfterMatch) dayOffset = parseInt(daysAfterMatch[1]);
+                const daysBeforeMatch = text.match(/(\d+)\s*[日天]\s*前/);
+                if (daysBeforeMatch) dayOffset = -parseInt(daysBeforeMatch[1]);
 
-                const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
-                if (yearAfterMatch) yearOffset = parseInt(yearAfterMatch[1]);
-                else if (/明年/.test(text)) yearOffset = 1;
-                else if (/後年/.test(text)) yearOffset = 2;
-
-                const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
-                if (monthDayMatch) {
-                    month = parseInt(monthDayMatch[1]) - 1;
-                    day = parseInt(monthDayMatch[2]);
-                }
-
+                // 其他日期詞（優先級高於上述）
                 if (/今天|今日/.test(text)) dayOffset = 0;
                 else if (/明天|明日|聽日|聽晚/.test(text)) dayOffset = 1;
                 else if (/後天|後日/.test(text)) dayOffset = 2;
@@ -758,25 +411,48 @@
                 else if (/琴日|昨日/.test(text)) dayOffset = -1;
                 else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) dayOffset = 14;
 
-                const weekMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7, '天': 7 };
+                // 年份相關
+                const yearMatch = text.match(/(\d{4})\s*年/);
+                if (yearMatch) pureYear = parseInt(yearMatch[1]);
+                const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
+                if (yearAfterMatch) yearOffset = parseInt(yearAfterMatch[1]);
+                else if (/明年/.test(text)) yearOffset = 1;
+                else if (/後年/.test(text)) yearOffset = 2;
+
+                // 月日
+                const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
+                if (monthDayMatch) {
+                    month = parseInt(monthDayMatch[1]) - 1;
+                    day = parseInt(monthDayMatch[2]);
+                }
+
+                // ---- ★ 修正星期幾解析（正確處理「下星期日」） ----
+                const weekMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':7,'天':7 };
                 const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
                 const weekMatch = text.match(weekRegex);
                 if (weekMatch) {
-                    const prefix1 = weekMatch[1];
-                    const prefix2 = weekMatch[2];
+                    const prefix1 = weekMatch[1]; // '上' 或 '下'
+                    const prefix2 = weekMatch[2]; // 可能為 '下' (下下)
                     const dayNum = weekMap[weekMatch[3]];
                     if (dayNum) {
-                        let currentDay = today.getDay();
-                        let targetDay = dayNum % 7;
-                        let diff = targetDay - currentDay;
-                        if (prefix1 === '下') diff += 7;
-                        else if (prefix1 === '上') diff -= 7;
-                        if (prefix2 === '下') diff += 7;
+                        let currentDay = today.getDay(); // 0=日
+                        let targetDay = dayNum % 7;      // 0=日
+                        // 計算「本週」的目標日偏移（0~6）
+                        let diff = (targetDay - currentDay + 7) % 7;
+                        // 根據前綴調整
+                        if (prefix1 === '下') {
+                            diff += 7;
+                        } else if (prefix1 === '上') {
+                            diff -= 7;
+                        }
+                        if (prefix2 === '下') {
+                            diff += 7; // 下下
+                        }
                         weekOffset = diff;
                     }
                 }
 
-                // 組合日期
+                // ---- 組合日期（優先級：純年份 > 月日 > 星期幾 > 天數偏移） ----
                 if (pureYear !== null) {
                     targetDate.setFullYear(pureYear);
                     if (month !== null && day !== null) targetDate.setMonth(month, day);
@@ -784,10 +460,12 @@
                     if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                     if (month !== null && day !== null) targetDate.setMonth(month, day);
                     if (weekOffset !== null) {
+                        // 直接使用計算好的偏移（已包含上/下/下下）
                         targetDate = new Date(today);
                         targetDate.setDate(today.getDate() + weekOffset);
                         if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
                     } else if (dayOffset !== null) {
+                        // 若已有月日，則忽略天數偏移（語意衝突）
                         if (month === null || day === null) {
                             targetDate = new Date(today);
                             targetDate.setDate(today.getDate() + dayOffset);
@@ -801,10 +479,9 @@
                 const d = String(targetDate.getDate()).padStart(2, '0');
                 date = y + '-' + m + '-' + d;
 
-                // 時間解析（支援中文數字與粵語「點」「半」）
+                // ---- 時間解析（支援粵語「點」「半」） ----
                 function chineseToNum(ch) {
-                    const map = { '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
-                        '十': 10, '十一': 11, '十二': 12 };
+                    const map = { '零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12 };
                     return map[ch] !== undefined ? map[ch] : parseInt(ch);
                 }
                 const t1 = text.match(/(\d{1,2})[:.](\d{2})/);
@@ -832,7 +509,7 @@
                 return { summary, category, date, time };
             }
 
-            // ----- 主要處理流程 -----
+            // ---------- 主要處理流程 ----------
             async function handleAdd() {
                 if (isProcessing) return;
                 const rawText = todoInput.value.trim();
@@ -883,9 +560,11 @@
                 }
             }
 
-            // ----- 填入範例 -----
+            // 填入範例
             function fillDemo() {
                 const demos = [
+                    '下星期日開會',
+                    '5日後晚11點開會',
                     '聽晚9點開會',
                     '明天早上十點要交房租',
                     '下週三下午三點開會',
@@ -900,7 +579,7 @@
                 setStatus(`📝 已填入範例：「${pick}」`);
             }
 
-            // ----- API 設定管理 -----
+            // API 設定管理
             function initApiConfig() {
                 const loaded = loadFromLocal();
                 if (!loaded) saveToLocal();
@@ -910,14 +589,11 @@
                 console.log('🔑 API Key:', apiKey ? '已設定' : '無');
                 console.log('🧠 useApi:', useApi);
             }
-
             function updateApiHint() {
                 if (useApi && apiKey) {
-                    apiHint.innerHTML =
-                        `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
+                    apiHint.innerHTML = `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰。`;
                 } else {
-                    apiHint.innerHTML =
-                        `⚙️ 目前使用 <strong>模擬解析</strong>（無 API 金鑰）。若要啟用智譜 AI，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
+                    apiHint.innerHTML = `⚙️ 目前使用 <strong>模擬解析</strong>（無 API 金鑰）。若要啟用智譜 AI，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
                 }
                 const link = document.getElementById('toggleApiConfig');
                 if (link) {
@@ -925,7 +601,6 @@
                     link.addEventListener('click', toggleConfigHandler);
                 }
             }
-
             function toggleConfigHandler(e) {
                 e.preventDefault();
                 const isHidden = apiConfig.style.display === 'none';
@@ -936,13 +611,9 @@
                     setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」');
                 }
             }
-
             function saveApiKey() {
                 const key = apiKeyInput.value.trim();
-                if (!key) {
-                    setStatus('⚠️ 請先貼上 API Key', true);
-                    return;
-                }
+                if (!key) { setStatus('⚠️ 請先貼上 API Key', true); return; }
                 apiKey = key;
                 useApi = true;
                 saveToLocal();
@@ -951,7 +622,6 @@
                 setStatus('✅ 智譜 AI API Key 已儲存（本地）');
                 console.log('🔑 已儲存新金鑰');
             }
-
             function clearApiKey() {
                 apiKey = '';
                 useApi = false;
@@ -961,7 +631,6 @@
                 setStatus('🧹 已清除 API Key，切換為模擬模式');
                 console.log('🧹 已清除金鑰');
             }
-
             function togglePwdVisibility() {
                 if (apiKeyInput.type === 'password') {
                     apiKeyInput.type = 'text';
@@ -972,30 +641,23 @@
                 }
             }
 
-            // ----- 事件綁定 -----
+            // 事件綁定
             addBtn.addEventListener('click', handleAdd);
-            todoInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAdd();
-                }
-            });
+            todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } });
             clearBtn.addEventListener('click', clearAll);
             demoBtn.addEventListener('click', fillDemo);
             exportAllBtn.addEventListener('click', exportAllTodos);
             saveApiKeyBtn.addEventListener('click', saveApiKey);
             clearApiKeyBtn.addEventListener('click', clearApiKey);
             togglePwdBtn.addEventListener('click', togglePwdVisibility);
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none';
-            });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none'; });
 
-            // ----- 啟動 -----
+            // 啟動
             initApiConfig();
             if (todos.length === 0) {
+                addTodo('下星期日開會', '會議', '', '');
                 addTodo('聽晚9點開會', '會議', '', '');
-                addTodo('明天早上十點交房租', '繳費', '2026-09-02', '10:00');
-                setStatus('👋 歡迎！已為你建立兩筆範例（含粵語）');
+                setStatus('👋 歡迎！已為你建立兩筆範例（含「下星期日」）');
             } else {
                 render();
                 setStatus(`📂 已載入 ${todos.length} 項待辦`);
