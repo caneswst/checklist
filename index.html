@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 待辦助手 (智譜 AI)</title>
+    <title>AI 待辦助手 (智譜 AI) - 提醒功能</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', 'PingFang TC', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
@@ -92,7 +92,7 @@
 <body>
     <div class="container">
         <h1>✅ 待辦助手 <small>智譜 AI</small></h1>
-        <div class="subtitle">輸入一句話（支援粵語），AI 自動拆解成 事項 · 分類 · 日期 · 時間</div>
+        <div class="subtitle">輸入一句話（支援粵語），AI 自動拆解成 事項 · 分類 · 日期 · 時間 <span style="color:#ef4444;font-size:13px;">🔔 開始前5分鐘提醒</span></div>
 
         <div class="input-area">
             <div class="input-row">
@@ -161,7 +161,7 @@
             'use strict';
 
             // ----- 版本控制 -----
-            const APP_VERSION = '3.3';
+            const APP_VERSION = '3.4';
 
             // ----- 狀態 -----
             let todos = [];
@@ -361,6 +361,8 @@
                     todo.category = newCategory;
                     todo.date = dateInput.value;
                     todo.time = timeInput.value;
+                    // 編輯後重置提醒標記，讓它重新計算
+                    todo.reminded = false;
                     editingId = null;
                     render();
                     setStatus('✅ 已更新待辦事項');
@@ -374,7 +376,7 @@
 
             // ----- CRUD -----
             function addTodo(summary, category, date, time) {
-                const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now() };
+                const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now(), reminded: false };
                 todos.push(todo);
                 render();
                 return todo;
@@ -519,7 +521,7 @@
                 catch (_) { throw new Error('智譜回傳非 JSON 格式: ' + resultText); }
             }
 
-            // ---------- 模擬解析（修正：嚴格星期前綴，避免誤匹配） ----------
+            // ---------- 模擬解析（嚴格星期前綴） ----------
             function mockParse(text) {
                 console.log('🔧 使用模擬解析（嚴格星期前綴）');
                 let summary = text;
@@ -538,13 +540,11 @@
                 let month = null, day = null;
                 let pureYear = null;
 
-                // ---- 匹配「X日後」或「X天後」 ----
                 const daysAfterMatch = text.match(/(\d+)\s*[日天]\s*後/);
                 if (daysAfterMatch) dayOffset = parseInt(daysAfterMatch[1]);
                 const daysBeforeMatch = text.match(/(\d+)\s*[日天]\s*前/);
                 if (daysBeforeMatch) dayOffset = -parseInt(daysBeforeMatch[1]);
 
-                // 其他日期詞（優先級高於上述）
                 if (/今天|今日/.test(text)) dayOffset = 0;
                 else if (/明天|明日|聽日|聽晚/.test(text)) dayOffset = 1;
                 else if (/後天|後日/.test(text)) dayOffset = 2;
@@ -552,7 +552,6 @@
                 else if (/琴日|昨日/.test(text)) dayOffset = -1;
                 else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) dayOffset = 14;
 
-                // 年份相關
                 const yearMatch = text.match(/(\d{4})\s*年/);
                 if (yearMatch) pureYear = parseInt(yearMatch[1]);
                 const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
@@ -560,17 +559,13 @@
                 else if (/明年/.test(text)) yearOffset = 1;
                 else if (/後年/.test(text)) yearOffset = 2;
 
-                // 月日
                 const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
                 if (monthDayMatch) {
                     month = parseInt(monthDayMatch[1]) - 1;
                     day = parseInt(monthDayMatch[2]);
                 }
 
-                // ---- ★ 星期幾解析（嚴格前綴，避免誤匹配「明天」等） ----
                 const weekMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':7,'天':7 };
-
-                // 先嘗試有上下前綴的
                 const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
                 const weekMatch = text.match(weekRegex);
                 if (weekMatch) {
@@ -587,7 +582,6 @@
                         weekOffset = diff;
                     }
                 } else {
-                    // ★ 無上下前綴但必須有「星期/禮拜/週」前綴，避免誤匹配
                     const simpleWeekRegex = /(?:星期|禮拜|週)\s*([一二三四五六七日天])/;
                     const simpleMatch = text.match(simpleWeekRegex);
                     if (simpleMatch) {
@@ -601,7 +595,6 @@
                     }
                 }
 
-                // ---- 組合日期 ----
                 if (pureYear !== null) {
                     targetDate.setFullYear(pureYear);
                     if (month !== null && day !== null) targetDate.setMonth(month, day);
@@ -626,7 +619,6 @@
                 const d = String(targetDate.getDate()).padStart(2, '0');
                 date = y + '-' + m + '-' + d;
 
-                // ---- 時間解析 ----
                 function chineseToNum(ch) {
                     const map = { '零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12 };
                     return map[ch] !== undefined ? map[ch] : parseInt(ch);
@@ -723,6 +715,106 @@
                 setStatus(`📝 已填入範例：「${pick}」`);
             }
 
+            // ----- 提醒功能 -----
+            let notificationInterval = null;
+
+            function requestNotificationPermission() {
+                if (!('Notification' in window)) {
+                    console.log('此瀏覽器不支援通知');
+                    return;
+                }
+                if (Notification.permission === 'granted') {
+                    console.log('通知權限已授予');
+                } else if (Notification.permission === 'denied') {
+                    console.log('通知權限已被拒絕');
+                } else {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            console.log('通知權限已授予');
+                        } else {
+                            console.log('通知權限被拒絕');
+                        }
+                    });
+                }
+            }
+
+            function checkReminders() {
+                const now = new Date();
+                // 遍歷所有待辦事項
+                for (const todo of todos) {
+                    if (todo.reminded) continue;
+                    if (!todo.date || !todo.time) continue;
+                    // 組合日期時間
+                    const parts = todo.date.split('-');
+                    if (parts.length !== 3) continue;
+                    const timeParts = todo.time.split(':');
+                    if (timeParts.length !== 2) continue;
+                    const target = new Date(
+                        parseInt(parts[0]),
+                        parseInt(parts[1]) - 1,
+                        parseInt(parts[2]),
+                        parseInt(timeParts[0]),
+                        parseInt(timeParts[1]),
+                        0
+                    );
+                    if (isNaN(target.getTime())) continue;
+                    // 計算距離目標時間的毫秒數
+                    const diffMs = target.getTime() - now.getTime();
+                    // 如果目標時間已過，則略過（但若已過且未提醒，可設定為已提醒）
+                    if (diffMs < 0) {
+                        // 如果已過期但尚未提醒，可標記為已提醒避免重複
+                        todo.reminded = true;
+                        saveToLocal();
+                        continue;
+                    }
+                    // 若在 5 分鐘內（300000 ms）
+                    if (diffMs <= 300000) {
+                        // 觸發通知
+                        sendNotification(todo);
+                        todo.reminded = true;
+                        saveToLocal();
+                        // 立即更新清單（但無需重新渲染，只改狀態）
+                        // 不過我們可選擇重新渲染以更新提醒圖示（可選）
+                    }
+                }
+            }
+
+            function sendNotification(todo) {
+                if (!('Notification' in window) || Notification.permission !== 'granted') {
+                    console.log('無法發送通知：權限不足');
+                    return;
+                }
+                const title = `⏰ 待辦提醒：${todo.summary}`;
+                const body = `時間：${todo.date} ${todo.time}\n分類：${todo.category}`;
+                const icon = '🔔'; // 可改為圖片URL
+                try {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext y=".9em" font-size="90" %3E🔔%3C/text%3E%3C/svg%3E',
+                        tag: 'todo-' + todo.id,
+                        requireInteraction: true,
+                    });
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                    // 手機震動（如果支援）
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                } catch (e) {
+                    console.error('發送通知失敗:', e);
+                }
+            }
+
+            // 啟動定時檢查
+            function startReminderChecker() {
+                if (notificationInterval) clearInterval(notificationInterval);
+                notificationInterval = setInterval(() => {
+                    checkReminders();
+                }, 30000); // 每30秒檢查一次
+            }
+
             // ----- API 與分類設定管理 -----
             function initConfig() {
                 loadCategories();
@@ -734,6 +826,12 @@
                 if (apiKey) useApi = true;
                 console.log('🔑 API Key:', apiKey ? '已設定' : '無');
                 console.log('🧠 useApi:', useApi);
+
+                // 請求通知權限並啟動提醒檢查
+                requestNotificationPermission();
+                startReminderChecker();
+                // 首次立即檢查一次
+                setTimeout(checkReminders, 2000);
             }
 
             function updateApiHint() {
@@ -821,9 +919,17 @@
             initConfig();
 
             if (todos.length === 0) {
+                // 建立一個即將到來的範例（例如 5 分鐘後的待辦，方便測試提醒）
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 4);
+                const y = now.getFullYear();
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const d = String(now.getDate()).padStart(2, '0');
+                const h = String(now.getHours()).padStart(2, '0');
+                const min = String(now.getMinutes()).padStart(2, '0');
+                addTodo('測試提醒（5分鐘後）', '會議', `${y}-${m}-${d}`, `${h}:${min}`);
                 addTodo('明天早上10點開會', '會議', '', '');
-                addTodo('後天下午3點看醫生', '會議', '', '');
-                setStatus('👋 歡迎！已為你建立「明天」和「後天」的範例');
+                setStatus('👋 歡迎！已建立一個「測試提醒」範例，5分鐘後會通知您');
             } else {
                 render();
                 setStatus(`📂 已載入 ${todos.length} 項待辦`);
