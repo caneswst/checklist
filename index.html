@@ -28,6 +28,7 @@
         .btn-danger:hover { background: #fca5a5; }
         .btn-edit { background: #fef08a; color: #854d0e; }
         .btn-edit:hover { background: #fde047; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
         .status-bar { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #64748b; min-height: 28px; flex-wrap: wrap; }
         .status-bar .spinner { display: none; width: 20px; height: 20px; border: 3px solid #e2e8f0; border-top: 3px solid #818cf8; border-radius: 50%; animation: spin 0.7s linear infinite; }
         .status-bar .spinner.active { display: inline-block; }
@@ -61,14 +62,18 @@
         .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; flex-wrap: wrap; gap: 10px; }
         .count-badge { font-size: 14px; color: #64748b; }
         .count-badge strong { color: #1e293b; }
-        .api-hint { font-size: 13px; color: #94a3b8; margin-top: 14px; padding: 14px 18px; background: #f8fafc; border-radius: 12px; border: 1px dashed #d1d5db; line-height: 1.7; }
-        .api-hint a { color: #6366f1; text-decoration: none; }
-        .api-hint a:hover { text-decoration: underline; }
-        .api-config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .api-config-row input[type="text"] { flex: 1; padding: 10px 14px; border: 2px solid #d1d5db; border-radius: 10px; font-size: 14px; outline: none; min-width: 200px; background: #ffffff; }
-        .api-config-row input[type="text"]:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
+        .api-hint, .cat-hint { font-size: 13px; color: #94a3b8; margin-top: 14px; padding: 14px 18px; background: #f8fafc; border-radius: 12px; border: 1px dashed #d1d5db; line-height: 1.7; }
+        .api-hint a, .cat-hint a { color: #6366f1; text-decoration: none; }
+        .api-hint a:hover, .cat-hint a:hover { text-decoration: underline; }
+        .api-config-row, .cat-config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .api-config-row input[type="text"], .cat-config-row input[type="text"] { flex: 1; padding: 10px 14px; border: 2px solid #d1d5db; border-radius: 10px; font-size: 14px; outline: none; min-width: 200px; background: #ffffff; }
+        .api-config-row input[type="text"]:focus, .cat-config-row input[type="text"]:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.2); }
         .toggle-pwd-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 8px; color: #64748b; transition: background 0.2s; }
         .toggle-pwd-btn:hover { background: #e2e8f0; }
+        .cat-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .cat-tag { display: inline-flex; align-items: center; gap: 6px; background: #eef2ff; padding: 4px 12px 4px 16px; border-radius: 20px; font-size: 14px; color: #4338ca; }
+        .cat-tag .del-cat { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 0 4px; }
+        .cat-tag .del-cat:hover { color: #ef4444; }
         @media (max-width: 600px) {
             .container { padding: 20px 16px; }
             .input-row { flex-direction: column; }
@@ -80,7 +85,7 @@
             .todo-item .cal-btn, .todo-item .edit-btn { margin-left: auto; font-size: 20px; }
             .todo-item .delete-btn { margin-left: 0; }
             .footer-actions { flex-direction: column; align-items: stretch; }
-            .api-config-row { flex-direction: column; align-items: stretch; }
+            .api-config-row, .cat-config-row { flex-direction: column; align-items: stretch; }
             .todo-item .edit-btns { flex-wrap: wrap; }
         }
     </style>
@@ -119,9 +124,22 @@
                 <button class="btn btn-success" id="exportAllBtn">📅 匯出全部</button>
                 <button class="btn btn-secondary" id="clearBtn">🗑️ 清空全部</button>
                 <button class="btn btn-secondary" id="demoBtn">🧪 填入範例</button>
+                <button class="btn btn-secondary" id="manageCatBtn">📂 管理分類</button>
             </div>
         </div>
 
+        <!-- 分類管理面板（預設隱藏） -->
+        <div id="catPanel" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
+            <div style="font-weight:600;font-size:14px;color:#1e293b;margin-bottom:8px;">📂 管理分類</div>
+            <div class="cat-config-row">
+                <input type="text" id="newCatInput" placeholder="輸入新分類名稱" />
+                <button class="btn btn-primary btn-sm" id="addCatBtn">➕ 新增</button>
+            </div>
+            <div class="cat-list" id="catList"></div>
+            <div style="font-size:12px;color:#64748b;margin-top:8px;">💡 刪除分類不會影響已使用該分類的待辦事項，僅從下拉選單中移除。</div>
+        </div>
+
+        <!-- API 設定提示 -->
         <div class="api-hint" id="apiHint">
             🧠 目前使用 <strong>智譜 AI</strong>（金鑰已自動載入）。
             點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可檢視或更換金鑰。
@@ -146,7 +164,7 @@
             'use strict';
 
             // ----- 版本控制 -----
-            const APP_VERSION = '3.0';
+            const APP_VERSION = '3.1';
 
             // ----- 狀態 -----
             let todos = [];
@@ -154,7 +172,8 @@
             let isProcessing = false;
             let useApi = true;
             let apiKey = '';
-            let editingId = null; // 目前正在編輯的項目 ID，若無則 null
+            let editingId = null;
+            let categories = []; // 自訂分類列表
 
             // ----- DOM 參照 -----
             const todoInput = document.getElementById('todoInput');
@@ -166,6 +185,11 @@
             const clearBtn = document.getElementById('clearBtn');
             const demoBtn = document.getElementById('demoBtn');
             const exportAllBtn = document.getElementById('exportAllBtn');
+            const manageCatBtn = document.getElementById('manageCatBtn');
+            const catPanel = document.getElementById('catPanel');
+            const newCatInput = document.getElementById('newCatInput');
+            const addCatBtn = document.getElementById('addCatBtn');
+            const catList = document.getElementById('catList');
             const apiHint = document.getElementById('apiHint');
             const toggleApiConfig = document.getElementById('toggleApiConfig');
             const apiConfig = document.getElementById('apiConfig');
@@ -184,6 +208,50 @@
                 addBtn.disabled = loading;
                 if (loading) spinner.classList.add('active');
                 else spinner.classList.remove('active');
+            }
+
+            // ----- 分類管理 -----
+            function loadCategories() {
+                try {
+                    const stored = localStorage.getItem('categories');
+                    if (stored) {
+                        categories = JSON.parse(stored);
+                    } else {
+                        categories = ['繳費', '會議', '其他'];
+                        saveCategories();
+                    }
+                } catch (_) {
+                    categories = ['繳費', '會議', '其他'];
+                    saveCategories();
+                }
+            }
+            function saveCategories() {
+                try {
+                    localStorage.setItem('categories', JSON.stringify(categories));
+                } catch (_) {}
+            }
+            function renderCatList() {
+                catList.innerHTML = '';
+                categories.forEach(cat => {
+                    const span = document.createElement('span');
+                    span.className = 'cat-tag';
+                    span.innerHTML = `${escapeHtml(cat)} <button class="del-cat" data-cat="${escapeHtml(cat)}">✕</button>`;
+                    span.querySelector('.del-cat').addEventListener('click', function() {
+                        const name = this.dataset.cat;
+                        if (categories.length <= 1) {
+                            setStatus('⚠️ 至少保留一個分類', true);
+                            return;
+                        }
+                        if (confirm(`確定要刪除分類「${name}」嗎？\n（已使用該分類的待辦事項不會被刪除）`)) {
+                            categories = categories.filter(c => c !== name);
+                            saveCategories();
+                            renderCatList();
+                            render(); // 重新渲染待辦清單（更新下拉選項）
+                            setStatus(`✅ 已刪除分類「${name}」`);
+                        }
+                    });
+                    catList.appendChild(span);
+                });
             }
 
             // ----- 儲存 / 載入 localStorage（含版本檢查） -----
@@ -228,14 +296,26 @@
                     div.className = 'todo-item';
                     div.dataset.id = item.id;
 
-                    // 判斷是否為編輯模式
                     if (editingId === item.id) {
                         // ---- 編輯模式 ----
-                        const catOptions = ['繳費', '會議', '其他'];
-                        const catSelect = `<select class="edit-select" id="edit-cat-${item.id}">${catOptions.map(c => `<option value="${c}" ${c===item.category?'selected':''}>${c}</option>`).join('')}</select>`;
+                        // 構建分類下拉選項：包含所有分類，並確保當前分類也在清單中
+                        let catOptions = '';
+                        const allCats = [...categories];
+                        // 若當前分類不在清單中，加入清單（但標示為特殊）
+                        const currentCat = item.category || '其他';
+                        if (!allCats.includes(currentCat)) {
+                            allCats.push(currentCat);
+                        }
+                        allCats.forEach(c => {
+                            const selected = c === currentCat ? 'selected' : '';
+                            const isDeleted = !categories.includes(c) && c === currentCat;
+                            const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
+                            catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
+                        });
+
                         div.innerHTML = `
                             <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
-                            ${catSelect}
+                            <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
                             <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
                             <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
                             <span></span>
@@ -245,7 +325,6 @@
                             </div>
                             <span></span>
                         `;
-                        // 綁定儲存與取消事件
                         div.querySelector('.save-btn').addEventListener('click', function(e) {
                             e.stopPropagation();
                             const id = Number(this.dataset.id);
@@ -256,7 +335,6 @@
                             editingId = null;
                             render();
                         });
-                        // 按 Enter 儲存
                         const inputs = div.querySelectorAll('input, select');
                         inputs.forEach(inp => {
                             inp.addEventListener('keydown', function(e) {
@@ -270,7 +348,6 @@
                                 }
                             });
                         });
-                        // 自動聚焦到摘要輸入框
                         setTimeout(() => {
                             const summaryInput = document.getElementById(`edit-summary-${item.id}`);
                             if (summaryInput) summaryInput.focus();
@@ -280,25 +357,24 @@
                         const cat = item.category || '其他';
                         const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
                         const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
+                        const bg = colors[cat] || '#f3f4f6';
+                        const tc = textColors[cat] || '#4b5563';
                         div.innerHTML = `
                             <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
-                            <span class="category" style="background:${colors[cat]||'#f3f4f6'};color:${textColors[cat]||'#4b5563'};">${escapeHtml(cat)}</span>
+                            <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
                             <span class="date">${escapeHtml(item.date || '—')}</span>
                             <span class="time">${escapeHtml(item.time || '—')}</span>
                             <button class="cal-btn" data-id="${item.id}" title="加入行事曆">📅</button>
                             <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
                             <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
                         `;
-                        // 刪除
                         div.querySelector('.delete-btn').addEventListener('click', function() {
                             deleteTodo(Number(this.dataset.id));
                         });
-                        // 日曆
                         div.querySelector('.cal-btn').addEventListener('click', function() {
                             const todo = todos.find(t => t.id === Number(this.dataset.id));
                             if (todo) exportSingleTodo(todo);
                         });
-                        // 編輯
                         div.querySelector('.edit-btn').addEventListener('click', function() {
                             const id = Number(this.dataset.id);
                             editingId = id;
@@ -320,17 +396,15 @@
                 if (!summaryInput || !catSelect || !dateInput || !timeInput) return;
 
                 const newSummary = summaryInput.value.trim() || '（無標題）';
-                const newCategory = catSelect.value;
-                const newDate = dateInput.value;
-                const newTime = timeInput.value;
-
-                // 更新資料
+                let newCategory = catSelect.value;
+                // 如果選擇的分類不在 categories 中（可能是已刪除的），但我們仍保存其文字
+                // 確保不遺失
                 const todo = todos.find(t => t.id === id);
                 if (todo) {
                     todo.summary = newSummary;
                     todo.category = newCategory;
-                    todo.date = newDate;
-                    todo.time = newTime;
+                    todo.date = dateInput.value;
+                    todo.time = timeInput.value;
                     editingId = null;
                     render();
                     setStatus('✅ 已更新待辦事項');
@@ -656,7 +730,11 @@
                     }
 
                     const summary = parsed.summary || rawText;
-                    const category = parsed.category || '其他';
+                    let category = parsed.category || '其他';
+                    // 如果 AI 回傳的分類不在 categories 中，我們仍然保存，但使用者可在編輯時調整
+                    // 但我們可以將其自動加入分類列表？為了不污染，我們只提示使用者可以添加
+                    // 這裡我們直接保存
+
                     const date = parsed.date || '';
                     const time = parsed.time || '';
 
@@ -693,8 +771,13 @@
                 setStatus(`📝 已填入範例：「${pick}」`);
             }
 
-            // ----- API 設定管理 -----
-            function initApiConfig() {
+            // ----- API 與分類設定管理 -----
+            function initConfig() {
+                // 載入分類
+                loadCategories();
+                renderCatList();
+
+                // 載入待辦資料
                 const loaded = loadFromLocal();
                 if (!loaded) {
                     todos = [];
@@ -764,19 +847,46 @@
                 }
             }
 
+            // ----- 分類管理按鈕事件 -----
+            function toggleCatPanel() {
+                const isHidden = catPanel.style.display === 'none';
+                catPanel.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    newCatInput.focus();
+                }
+            }
+
+            function addCategory() {
+                const name = newCatInput.value.trim();
+                if (!name) { setStatus('⚠️ 請輸入分類名稱', true); return; }
+                if (categories.includes(name)) {
+                    setStatus('⚠️ 分類已存在', true);
+                    return;
+                }
+                categories.push(name);
+                saveCategories();
+                renderCatList();
+                newCatInput.value = '';
+                render(); // 更新編輯下拉選單
+                setStatus(`✅ 已新增分類「${name}」`);
+            }
+
             // ----- 事件綁定 -----
             addBtn.addEventListener('click', handleAdd);
             todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } });
             clearBtn.addEventListener('click', clearAll);
             demoBtn.addEventListener('click', fillDemo);
             exportAllBtn.addEventListener('click', exportAllTodos);
+            manageCatBtn.addEventListener('click', toggleCatPanel);
+            addCatBtn.addEventListener('click', addCategory);
+            newCatInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } });
             saveApiKeyBtn.addEventListener('click', saveApiKey);
             clearApiKeyBtn.addEventListener('click', clearApiKey);
             togglePwdBtn.addEventListener('click', togglePwdVisibility);
-            document.addEventListener('keydown', e => { if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none'; });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && apiConfig.style.display === 'block') apiConfig.style.display = 'none'; if (e.key === 'Escape' && catPanel.style.display === 'block') catPanel.style.display = 'none'; });
 
             // ----- 啟動 -----
-            initApiConfig();
+            initConfig();
 
             if (todos.length === 0) {
                 addTodo('下星期日開會', '會議', '', '');
