@@ -149,7 +149,6 @@
             點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰及雲端同步。
         </div>
         <div id="apiConfig" style="display:none;margin-top:14px;padding:18px 20px;background:#f1f5f9;border-radius:14px;">
-            <!-- 智譜 AI Key -->
             <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:8px;">🔑 智譜 AI API Key</label>
             <div class="api-config-row">
                 <input type="text" id="apiKeyInput" placeholder="貼上你的智譜 API Key" />
@@ -161,7 +160,6 @@
                 可至 <a href="https://open.bigmodel.cn/" target="_blank" style="color:#6366f1;">智譜AI開放平台</a> 取得金鑰（新用戶贈送 2000 萬 Token）。
             </div>
 
-            <!-- 雲端同步設定 -->
             <hr style="border:1px dashed #d1d5db;margin:12px 0;" />
             <label style="font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:8px;">☁️ 雲端同步 (JSONBin.io)</label>
             <div class="sync-config-row">
@@ -228,7 +226,6 @@
             const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
             const togglePwdBtn = document.getElementById('togglePwdBtn');
 
-            // 同步相關 DOM
             const syncApiKeyInput = document.getElementById('syncApiKeyInput');
             const syncBinIdInput = document.getElementById('syncBinIdInput');
             const syncEnabledCheckbox = document.getElementById('syncEnabled');
@@ -276,7 +273,6 @@
                 );
                 let datesParam = '';
 
-                // 處理日期與時間
                 if (todo.date) {
                     const parts = todo.date.split('-');
                     if (parts.length === 3) {
@@ -288,7 +284,6 @@
                             if (timeParts.length === 2) {
                                 const startH = timeParts[0];
                                 const startM = timeParts[1];
-                                // 結束時間 = 開始 + 1 小時
                                 let endH = parseInt(startH) + 1;
                                 if (endH >= 24) endH -= 24;
                                 const start = `${y}${m}${d}T${startH}${startM}00`;
@@ -296,9 +291,7 @@
                                 datesParam = `&dates=${start}/${end}`;
                             }
                         } else {
-                            // 全天事件
                             const start = `${y}${m}${d}`;
-                            // 結束日期 = 開始 + 1 天
                             const endDate = new Date(parseInt(y), parseInt(m)-1, parseInt(d) + 1);
                             const endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0');
                             datesParam = `&dates=${start}/${endStr}`;
@@ -306,7 +299,6 @@
                     }
                 }
 
-                // 如果沒有日期，用今天
                 if (!datesParam) {
                     const now = new Date();
                     const y = now.getFullYear();
@@ -348,7 +340,7 @@
                 });
             }
 
-            // ----- 儲存 / 載入 local（含版本檢查） -----
+            // ----- 儲存 / 載入 local -----
             function saveToLocal() {
                 try { localStorage.setItem('aiTodoData', JSON.stringify({ todos, nextId, useApi, apiKey, version: APP_VERSION })); } catch (_) {}
             }
@@ -407,7 +399,6 @@
                 syncStatus.textContent = '☁️ ' + msg;
             }
 
-            // 上傳資料到 JSONBin.io
             async function uploadToCloud() {
                 if (!syncEnabled || !syncApiKey || !syncBinId) {
                     updateSyncStatus('同步未啟用或缺少憑證');
@@ -445,7 +436,6 @@
                 }
             }
 
-            // 從雲端下載資料
             async function downloadFromCloud() {
                 if (!syncEnabled || !syncApiKey || !syncBinId) {
                     updateSyncStatus('同步未啟用或缺少憑證');
@@ -528,4 +518,664 @@
                 countBadge.innerHTML = `共 <strong>${total}</strong> 項${overdueCount > 0 ? `（已過期 <span style="color:#b91c1c;">${overdueCount}</span> 項）` : ''}`;
 
                 if (upcoming.length > 0) {
-                    upcoming.forEach(item =>
+                    upcoming.forEach(item => renderTodoItem(item, false));
+                }
+                if (overdue.length > 0) {
+                    const divider = document.createElement('div');
+                    divider.className = 'todo-divider overdue';
+                    divider.textContent = `📋 已過期事項 (${overdue.length} 項)`;
+                    todoItems.appendChild(divider);
+                    overdue.forEach(item => renderTodoItem(item, true));
+                }
+            }
+
+            function renderTodoItem(item, isOverdueFlag) {
+                const div = document.createElement('div');
+                div.className = 'todo-item';
+                if (isOverdueFlag) div.classList.add('overdue');
+                div.dataset.id = item.id;
+
+                if (editingId === item.id) {
+                    let catOptions = '';
+                    const allCats = [...categories];
+                    const currentCat = item.category || '其他';
+                    if (!allCats.includes(currentCat)) allCats.push(currentCat);
+                    allCats.forEach(c => {
+                        const selected = c === currentCat ? 'selected' : '';
+                        const isDeleted = !categories.includes(c) && c === currentCat;
+                        const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
+                        catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
+                    });
+                    div.innerHTML = `
+                        <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
+                        <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
+                        <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
+                        <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
+                        <span></span>
+                        <div class="edit-btns">
+                            <button class="save-btn" data-id="${item.id}">💾 儲存</button>
+                            <button class="cancel-btn" data-id="${item.id}">❌ 取消</button>
+                        </div>
+                        <span></span>
+                    `;
+                    div.querySelector('.save-btn').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const id = Number(this.dataset.id);
+                        saveEdit(id);
+                    });
+                    div.querySelector('.cancel-btn').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        editingId = null;
+                        render();
+                    });
+                    const inputs = div.querySelectorAll('input, select');
+                    inputs.forEach(inp => {
+                        inp.addEventListener('keydown', function(e) {
+                            if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
+                            else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
+                        });
+                    });
+                    setTimeout(() => {
+                        const summaryInput = document.getElementById(`edit-summary-${item.id}`);
+                        if (summaryInput) summaryInput.focus();
+                    }, 50);
+                } else {
+                    const cat = item.category || '其他';
+                    const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
+                    const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
+                    const bg = colors[cat] || '#f3f4f6';
+                    const tc = textColors[cat] || '#4b5563';
+                    const gcalUrl = buildGoogleCalendarUrl(item);
+                    div.innerHTML = `
+                        <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
+                        <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
+                        <span class="date">${escapeHtml(item.date || '—')}</span>
+                        <span class="time">${escapeHtml(item.time || '—')}</span>
+                        <a class="cal-btn" href="${gcalUrl}" target="_blank" rel="noopener" title="加入 Google 日曆">📅</a>
+                        <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
+                        <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
+                    `;
+                    div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
+                    div.querySelector('.edit-btn').addEventListener('click', function() {
+                        const id = Number(this.dataset.id);
+                        editingId = id;
+                        render();
+                    });
+                }
+                todoItems.appendChild(div);
+            }
+
+            function saveEdit(id) {
+                const summaryInput = document.getElementById(`edit-summary-${id}`);
+                const catSelect = document.getElementById(`edit-cat-${id}`);
+                const dateInput = document.getElementById(`edit-date-${id}`);
+                const timeInput = document.getElementById(`edit-time-${id}`);
+                if (!summaryInput || !catSelect || !dateInput || !timeInput) return;
+                const newSummary = summaryInput.value.trim() || '（無標題）';
+                const newCategory = catSelect.value;
+                const todo = todos.find(t => t.id === id);
+                if (todo) {
+                    todo.summary = newSummary;
+                    todo.category = newCategory;
+                    todo.date = dateInput.value;
+                    todo.time = timeInput.value;
+                    todo.reminded = false;
+                    editingId = null;
+                    render();
+                    setStatus('✅ 已更新待辦事項');
+                    autoSync();
+                }
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                return String(text).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+            }
+
+            // ----- CRUD -----
+            function addTodo(summary, category, date, time) {
+                const todo = { id: nextId++, summary: summary.trim() || '（無標題）', category: category || '其他', date: date || '', time: time || '', createdAt: Date.now(), reminded: false };
+                todos.push(todo);
+                render();
+                autoSync();
+                return todo;
+            }
+            function deleteTodo(id) {
+                if (editingId === id) editingId = null;
+                todos = todos.filter(t => t.id !== id);
+                render();
+                setStatus('🗑️ 已刪除一項');
+                autoSync();
+            }
+            function clearAll() {
+                if (!todos.length) return;
+                if (confirm('確定要刪除所有待辦事項嗎？')) {
+                    todos = [];
+                    editingId = null;
+                    render();
+                    setStatus('🧹 已清空全部');
+                    autoSync();
+                }
+            }
+
+            // ----- 匯出 .ics（保留） -----
+            function generateIcsEvent(todo) {
+                const now = new Date();
+                const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+                if (todo.date) {
+                    const parts = todo.date.split('-');
+                    if (parts.length === 3) {
+                        const [Y, M, D] = parts;
+                        if (todo.time) {
+                            const [H, Min] = todo.time.split(':');
+                            const start = Y + M + D + 'T' + H + Min + '00';
+                            let eh = parseInt(H)+1, em = Min;
+                            if (eh >= 24) eh -= 24;
+                            const end = Y + M + D + 'T' + String(eh).padStart(2,'0') + em + '00';
+                            return { start, end, allDay: false };
+                        }
+                        return { start: Y+M+D, end: Y+M+D, allDay: true };
+                    }
+                }
+                const today = y + m + d;
+                return { start: today, end: today, allDay: true };
+            }
+            function buildIcsForTodo(todo) {
+                const dt = generateIcsEvent(todo);
+                const uid = 'todo-' + todo.id + '-' + Date.now() + '@aitodo';
+                let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//AI待辦助手//iCalendar 1.0//ZH-TW\r\n';
+                ics += 'BEGIN:VEVENT\r\nUID:' + uid + '\r\nSUMMARY:' + (todo.summary || '待辦事項') + '\r\n';
+                if (dt.allDay) {
+                    ics += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
+                    const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                    const endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0');
+                    ics += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
+                } else {
+                    ics += 'DTSTART:' + dt.start + '\r\nDTEND:' + dt.end + '\r\n';
+                }
+                ics += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\nEND:VEVENT\r\nEND:VCALENDAR';
+                return ics;
+            }
+            function downloadIcs(filename, content) {
+                const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename.endsWith('.ics') ? filename : filename + '.ics';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            }
+            function exportAllTodos() {
+                if (!todos.length) { setStatus('⚠️ 沒有待辦事項可匯出', true); return; }
+                try {
+                    let allIcs = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//AI待辦助手//iCalendar 1.0//ZH-TW\r\n';
+                    for (const todo of todos) {
+                        const dt = generateIcsEvent(todo);
+                        const uid = 'todo-' + todo.id + '-' + Date.now() + '@aitodo';
+                        allIcs += 'BEGIN:VEVENT\r\nUID:' + uid + '\r\nSUMMARY:' + (todo.summary || '待辦事項') + '\r\n';
+                        if (dt.allDay) {
+                            allIcs += 'DTSTART;VALUE=DATE:' + dt.start + '\r\n';
+                            const endDate = new Date(dt.start.slice(0,4), parseInt(dt.start.slice(4,6))-1, parseInt(dt.start.slice(6,8)) + 1);
+                            const endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0');
+                            allIcs += 'DTEND;VALUE=DATE:' + endStr + '\r\n';
+                        } else {
+                            allIcs += 'DTSTART:' + dt.start + '\r\nDTEND:' + dt.end + '\r\n';
+                        }
+                        allIcs += 'DESCRIPTION:由 AI 待辦助手建立\\n' + todo.summary + '\\n分類：' + todo.category + '\r\nEND:VEVENT\r\n';
+                    }
+                    allIcs += 'END:VCALENDAR';
+                    downloadIcs('我的待辦事項.ics', allIcs);
+                    setStatus('📅 已匯出全部 ' + todos.length + ' 項待辦至行事曆檔案');
+                } catch (e) { setStatus('⚠️ 匯出全部失敗：' + e.message, true); }
+            }
+
+            // ---------- 智譜 AI 呼叫 ----------
+            async function callZhipuAPI(text) {
+                if (!apiKey) throw new Error('尚未設定 API Key');
+                const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+                const today = new Date().toISOString().split('T')[0];
+                const systemPrompt = `你是行政助理，負責從訊息中抽取待辦重點，今天是 ${today}。
+用戶可能使用繁體中文或粵語，請正確理解。
+規則：
+- 日期一律轉成 YYYY-MM-DD；「明天」「聽晚」等相對日期依今天推算。
+- 時間一律轉成 24 小時制 HH:mm；訊息沒提到時間就留空字串。
+- category 欄位只能填「繳費」「會議」「其他」三選一。
+- 找不到的欄位一律回空字串，不要自行編造內容。
+- 只回傳 JSON，不要加任何說明文字。
+輸出格式固定為：
+{"summary":"","category":"","date":"","time":""}`;
+                const payload = {
+                    model: 'glm-4-flash',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: text }
+                    ],
+                    temperature: 0.1,
+                };
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                    body: JSON.stringify(payload),
+                });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`智譜 API 請求失敗 (${response.status}): ${errText}`);
+                }
+                const data = await response.json();
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('智譜回應格式異常');
+                let resultText = data.choices[0].message.content;
+                const jsonMatch = resultText.match(/```json\s*([\s\S]*?)\s*```/);
+                if (jsonMatch) resultText = jsonMatch[1];
+                try { return JSON.parse(resultText); }
+                catch (_) { throw new Error('智譜回傳非 JSON 格式: ' + resultText); }
+            }
+
+            // ---------- 模擬解析 ----------
+            function mockParse(text) {
+                let summary = text;
+                let category = '其他';
+                let date = '';
+                let time = '';
+
+                if (/繳費|房租|電費|水費|瓦斯|信用卡|帳單|轉帳|匯款|付款/i.test(text)) category = '繳費';
+                else if (/會議|開會|報告|簡報|提案|討論/i.test(text)) category = '會議';
+
+                const today = new Date();
+                let targetDate = new Date(today);
+                let dayOffset = null;
+                let weekOffset = null;
+                let yearOffset = 0;
+                let month = null, day = null;
+                let pureYear = null;
+
+                const daysAfterMatch = text.match(/(\d+)\s*[日天]\s*後/);
+                if (daysAfterMatch) dayOffset = parseInt(daysAfterMatch[1]);
+                const daysBeforeMatch = text.match(/(\d+)\s*[日天]\s*前/);
+                if (daysBeforeMatch) dayOffset = -parseInt(daysBeforeMatch[1]);
+
+                if (/今天|今日/.test(text)) dayOffset = 0;
+                else if (/明天|明日|聽日|聽晚/.test(text)) dayOffset = 1;
+                else if (/後天|後日/.test(text)) dayOffset = 2;
+                else if (/大後天/.test(text)) dayOffset = 3;
+                else if (/琴日|昨日/.test(text)) dayOffset = -1;
+                else if (/下下星期|下下週/.test(text) && !/(?:星期|禮拜|週)[一二三四五六七日天]/.test(text)) dayOffset = 14;
+
+                const yearMatch = text.match(/(\d{4})\s*年/);
+                if (yearMatch) pureYear = parseInt(yearMatch[1]);
+                const yearAfterMatch = text.match(/(\d+)\s*年\s*後/);
+                if (yearAfterMatch) yearOffset = parseInt(yearAfterMatch[1]);
+                else if (/明年/.test(text)) yearOffset = 1;
+                else if (/後年/.test(text)) yearOffset = 2;
+
+                const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[日]?/);
+                if (monthDayMatch) {
+                    month = parseInt(monthDayMatch[1]) - 1;
+                    day = parseInt(monthDayMatch[2]);
+                }
+
+                const weekMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':7,'天':7 };
+                const weekRegex = /(上|下)(下?)\s*週?\s*(?:星期|禮拜)?\s*([一二三四五六七日天])/;
+                const weekMatch = text.match(weekRegex);
+                if (weekMatch) {
+                    const prefix1 = weekMatch[1];
+                    const prefix2 = weekMatch[2];
+                    const dayNum = weekMap[weekMatch[3]];
+                    if (dayNum) {
+                        let currentDay = today.getDay();
+                        let targetDay = dayNum % 7;
+                        let diff = (targetDay - currentDay + 7) % 7;
+                        if (prefix1 === '下') diff += 7;
+                        else if (prefix1 === '上') diff -= 7;
+                        if (prefix2 === '下') diff += 7;
+                        weekOffset = diff;
+                    }
+                } else {
+                    const simpleWeekRegex = /(?:星期|禮拜|週)\s*([一二三四五六七日天])/;
+                    const simpleMatch = text.match(simpleWeekRegex);
+                    if (simpleMatch) {
+                        const dayNum = weekMap[simpleMatch[1]];
+                        if (dayNum) {
+                            let currentDay = today.getDay();
+                            let targetDay = dayNum % 7;
+                            let diff = (targetDay - currentDay + 7) % 7;
+                            weekOffset = diff;
+                        }
+                    }
+                }
+
+                if (pureYear !== null) {
+                    targetDate.setFullYear(pureYear);
+                    if (month !== null && day !== null) targetDate.setMonth(month, day);
+                } else {
+                    if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                    if (month !== null && day !== null) targetDate.setMonth(month, day);
+                    if (weekOffset !== null) {
+                        targetDate = new Date(today);
+                        targetDate.setDate(today.getDate() + weekOffset);
+                        if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                    } else if (dayOffset !== null) {
+                        if (month === null || day === null) {
+                            targetDate = new Date(today);
+                            targetDate.setDate(today.getDate() + dayOffset);
+                            if (yearOffset !== 0) targetDate.setFullYear(targetDate.getFullYear() + yearOffset);
+                        }
+                    }
+                }
+
+                const y = targetDate.getFullYear();
+                const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const d = String(targetDate.getDate()).padStart(2, '0');
+                date = y + '-' + m + '-' + d;
+
+                function chineseToNum(ch) {
+                    const map = { '零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12 };
+                    return map[ch] !== undefined ? map[ch] : parseInt(ch);
+                }
+                const t1 = text.match(/(\d{1,2})[:.](\d{2})/);
+                if (t1) {
+                    time = String(t1[1]).padStart(2, '0') + ':' + t1[2];
+                } else {
+                    const pointMatch = text.match(/([一二三四五六七八九十十一十二零\d]+)\s*點\s*(半)?/);
+                    if (pointMatch) {
+                        let hour = chineseToNum(pointMatch[1]);
+                        let minute = 0;
+                        if (pointMatch[2] === '半') minute = 30;
+                        if (/下午|晚上|夜晚|晚|傍晚/.test(text)) {
+                            if (hour < 12) hour += 12;
+                        } else if (/凌晨/.test(text) && hour === 12) {
+                            hour = 0;
+                        } else if (/上午|朝早/.test(text) && hour === 12) {
+                            hour = 0;
+                        }
+                        if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+                            time = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+                        }
+                    }
+                }
+
+                return { summary, category, date, time };
+            }
+
+            // ---------- 主要處理流程 ----------
+            async function handleAdd() {
+                if (isProcessing) return;
+                const rawText = todoInput.value.trim();
+                if (!rawText) { setStatus('⚠️ 請輸入待辦事項', true); todoInput.focus(); return; }
+                setLoading(true);
+
+                const useRealApi = useApi && apiKey;
+                if (useRealApi) setStatus('🧠 智譜 AI 解析中...');
+                else setStatus('🔧 模擬解析中...');
+
+                try {
+                    let parsed, engine = '模擬';
+                    if (useRealApi) {
+                        try {
+                            parsed = await callZhipuAPI(rawText);
+                            engine = '智譜 AI';
+                        } catch (apiError) {
+                            console.error('智譜 API 錯誤，降級為模擬解析:', apiError);
+                            setStatus(`⚠️ 智譜 API 失敗：${apiError.message}，改用模擬解析`, true);
+                            parsed = mockParse(rawText);
+                            engine = '模擬 (API 失敗)';
+                        }
+                    } else {
+                        parsed = mockParse(rawText);
+                        engine = '模擬 (未啟用)';
+                    }
+
+                    const summary = parsed.summary || rawText;
+                    const category = parsed.category || '其他';
+                    const date = parsed.date || '';
+                    const time = parsed.time || '';
+
+                    addTodo(summary, category, date, time);
+                    todoInput.value = '';
+                    todoInput.focus();
+                    setStatus(`✅ 已新增！(${engine}) 事項：${summary}`);
+                } catch (err) {
+                    console.error(err);
+                    setStatus(`❌ 解析失敗：${err.message}`, true);
+                    addTodo(rawText, '其他', '', '');
+                    setStatus(`⚠️ 已以原始文字新增，但解析失敗：${err.message}`, true);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            // ----- 填入範例 -----
+            function fillDemo() {
+                const demos = [
+                    '明天早上10點開會',
+                    '後天下午3點看醫生',
+                    '星期六晚上9點開會',
+                    '下星期日開會',
+                    '5日後晚11點開會',
+                    '聽晚9點開會',
+                    '下週三下午三點開會',
+                    '今日下午五點前繳交信用卡費',
+                    '10月6日下午3點開會',
+                    '2028年10月6日下午十點都更開會',
+                ];
+                const pick = demos[Math.floor(Math.random() * demos.length)];
+                todoInput.value = pick;
+                todoInput.focus();
+                setStatus(`📝 已填入範例：「${pick}」`);
+            }
+
+            // ----- 提醒功能 -----
+            let notificationInterval = null;
+
+            function requestNotificationPermission() {
+                if (!('Notification' in window)) return;
+                if (Notification.permission === 'granted') return;
+                if (Notification.permission === 'denied') return;
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') console.log('通知權限已授予');
+                });
+            }
+
+            function checkReminders() {
+                const now = new Date();
+                for (const todo of todos) {
+                    if (todo.reminded) continue;
+                    if (!todo.date || !todo.time) continue;
+                    const parts = todo.date.split('-');
+                    if (parts.length !== 3) continue;
+                    const timeParts = todo.time.split(':');
+                    if (timeParts.length !== 2) continue;
+                    const target = new Date(
+                        parseInt(parts[0]),
+                        parseInt(parts[1]) - 1,
+                        parseInt(parts[2]),
+                        parseInt(timeParts[0]),
+                        parseInt(timeParts[1]),
+                        0
+                    );
+                    if (isNaN(target.getTime())) continue;
+                    const diffMs = target.getTime() - now.getTime();
+                    if (diffMs < 0) {
+                        todo.reminded = true;
+                        saveToLocal();
+                        continue;
+                    }
+                    if (diffMs <= 300000) {
+                        sendNotification(todo);
+                        todo.reminded = true;
+                        saveToLocal();
+                    }
+                }
+            }
+
+            function sendNotification(todo) {
+                if (!('Notification' in window) || Notification.permission !== 'granted') return;
+                const title = `⏰ 待辦提醒：${todo.summary}`;
+                const body = `時間：${todo.date} ${todo.time}\n分類：${todo.category}`;
+                try {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ctext y=".9em" font-size="90" %3E🔔%3C/text%3E%3C/svg%3E',
+                        tag: 'todo-' + todo.id,
+                        requireInteraction: true,
+                    });
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                    if (navigator.vibrate) navigator.vibrate(200);
+                } catch (e) {
+                    console.error('發送通知失敗:', e);
+                }
+            }
+
+            function startReminderChecker() {
+                if (notificationInterval) clearInterval(notificationInterval);
+                notificationInterval = setInterval(() => {
+                    checkReminders();
+                }, 30000);
+            }
+
+            // ----- 初始化設定 -----
+            function initConfig() {
+                loadCategories();
+                renderCatList();
+                const loaded = loadFromLocal();
+                if (!loaded) { todos = []; nextId = 1; saveToLocal(); }
+                apiKeyInput.value = apiKey;
+                updateApiHint();
+                if (apiKey) useApi = true;
+
+                loadSyncConfig();
+
+                requestNotificationPermission();
+                startReminderChecker();
+                setTimeout(checkReminders, 2000);
+
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    setTimeout(downloadFromCloud, 1000);
+                }
+            }
+
+            function updateApiHint() {
+                if (useApi && apiKey) {
+                    apiHint.innerHTML = `🧠 目前使用 <strong>智譜 AI</strong>（金鑰已設定）。點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」可管理金鑰及雲端同步。`;
+                } else {
+                    apiHint.innerHTML = `⚙️ 目前使用 <strong>模擬解析</strong>（無 API 金鑰）。若要啟用智譜 AI，請點擊「<a href="#" id="toggleApiConfig">顯示進階設定</a>」填入金鑰。`;
+                }
+                const link = document.getElementById('toggleApiConfig');
+                if (link) {
+                    link.removeEventListener('click', toggleConfigHandler);
+                    link.addEventListener('click', toggleConfigHandler);
+                }
+            }
+
+            function toggleConfigHandler(e) {
+                e.preventDefault();
+                const isHidden = apiConfig.style.display === 'none';
+                apiConfig.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) { apiKeyInput.focus(); apiKeyInput.select(); setStatus('✏️ 請貼上或輸入新的 API Key，然後點擊「儲存」'); }
+            }
+
+            function saveApiKey() {
+                const key = apiKeyInput.value.trim();
+                if (!key) { setStatus('⚠️ 請先貼上 API Key', true); return; }
+                apiKey = key; useApi = true; saveToLocal(); updateApiHint();
+                setStatus('✅ 智譜 AI API Key 已儲存（本地）');
+            }
+
+            function clearApiKey() {
+                apiKey = ''; useApi = false; apiKeyInput.value = ''; saveToLocal(); updateApiHint();
+                setStatus('🧹 已清除 API Key，切換為模擬模式');
+            }
+
+            function togglePwdVisibility() {
+                if (apiKeyInput.type === 'password') {
+                    apiKeyInput.type = 'text';
+                    togglePwdBtn.textContent = '🙈';
+                } else {
+                    apiKeyInput.type = 'password';
+                    togglePwdBtn.textContent = '👁️';
+                }
+            }
+
+            function toggleCatPanel() {
+                const isHidden = catPanel.style.display === 'none';
+                catPanel.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) newCatInput.focus();
+            }
+
+            function addCategory() {
+                const name = newCatInput.value.trim();
+                if (!name) { setStatus('⚠️ 請輸入分類名稱', true); return; }
+                if (categories.includes(name)) { setStatus('⚠️ 分類已存在', true); return; }
+                categories.push(name);
+                saveCategories();
+                renderCatList();
+                newCatInput.value = '';
+                render();
+                autoSync();
+                setStatus(`✅ 已新增分類「${name}」`);
+            }
+
+            function saveSyncSettings() {
+                saveSyncConfig();
+                if (syncEnabled && syncApiKey && syncBinId) {
+                    uploadToCloud();
+                }
+            }
+
+            function manualSync() {
+                if (!syncEnabled || !syncApiKey || !syncBinId) {
+                    setStatus('⚠️ 請先設定並啟用同步', true);
+                    return;
+                }
+                downloadFromCloud();
+            }
+
+            // ----- 事件綁定 -----
+            addBtn.addEventListener('click', handleAdd);
+            todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } });
+            clearBtn.addEventListener('click', clearAll);
+            demoBtn.addEventListener('click', fillDemo);
+            exportAllBtn.addEventListener('click', exportAllTodos);
+            manageCatBtn.addEventListener('click', toggleCatPanel);
+            addCatBtn.addEventListener('click', addCategory);
+            newCatInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } });
+            saveApiKeyBtn.addEventListener('click', saveApiKey);
+            clearApiKeyBtn.addEventListener('click', clearApiKey);
+            togglePwdBtn.addEventListener('click', togglePwdVisibility);
+            saveSyncBtn.addEventListener('click', saveSyncSettings);
+            syncNowBtn.addEventListener('click', manualSync);
+
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    if (apiConfig.style.display === 'block') apiConfig.style.display = 'none';
+                    if (catPanel.style.display === 'block') catPanel.style.display = 'none';
+                }
+            });
+
+            // ----- 啟動 -----
+            initConfig();
+
+            if (todos.length === 0) {
+                const now = new Date();
+                const future = new Date(now);
+                future.setMinutes(future.getMinutes() + 10);
+                const fY = future.getFullYear();
+                const fM = String(future.getMonth() + 1).padStart(2, '0');
+                const fD = String(future.getDate()).padStart(2, '0');
+                const fH = String(future.getHours()).padStart(2, '0');
+                const fMin = String(future.getMinutes()).padStart(2, '0');
+                addTodo('未來範例（10分鐘後）', '會議', `${fY}-${fM}-${fD}`, `${fH}:${fMin}`);
+                addTodo('明天早上10點開會', '會議', '', '');
+                setStatus('👋 歡迎！已建立範例，設定雲端同步可跨裝置使用');
+            } else {
+                render();
+                setStatus(`📂 已載入 ${todos.length} 項待辦`);
+            }
+            todoInput.focus();
+        })();
+    </script>
+</body>
+</html>
