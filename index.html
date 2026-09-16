@@ -519,86 +519,86 @@
                 }
             }
 
-            function renderTodoItem(item, isOverdueFlag) {
-                const div = document.createElement('div');
-                div.className = 'todo-item';
-                if (isOverdueFlag) div.classList.add('overdue');
-                div.dataset.id = item.id;
+function renderTodoItem(item, isOverdueFlag) {
+    const div = document.createElement('div');
+    div.className = 'todo-item';
+    if (isOverdueFlag) div.classList.add('overdue');
+    div.dataset.id = item.id;
 
-                if (editingId === item.id) {
-                    let catOptions = '';
-                    const allCats = [...categories];
-                    const currentCat = item.category || '其他';
-                    if (!allCats.includes(currentCat)) allCats.push(currentCat);
-                    allCats.forEach(c => {
-                        const selected = c === currentCat ? 'selected' : '';
-                        const isDeleted = !categories.includes(c) && c === currentCat;
-                        const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
-                        catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
-                    });
-                    div.innerHTML = `
-                        <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
-                        <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
-                        <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
-                        <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
-                        <span></span>
-                        <div class="edit-btns">
-                            <button class="save-btn" data-id="${item.id}">💾 儲存</button>
-                            <button class="cancel-btn" data-id="${item.id}">❌ 取消</button>
-                        </div>
-                        <span></span>
-                    `;
-                    div.querySelector('.save-btn').addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const id = Number(this.dataset.id);
-                        saveEdit(id);
-                    });
-                    div.querySelector('.cancel-btn').addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        editingId = null;
-                        render();
-                    });
-                    const inputs = div.querySelectorAll('input, select');
-                    inputs.forEach(inp => {
-                        inp.addEventListener('keydown', function(e) {
-                            if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
-                            else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
-                        });
-                    });
-                    setTimeout(() => {
-                        const summaryInput = document.getElementById(`edit-summary-${item.id}`);
-                        if (summaryInput) summaryInput.focus();
-                    }, 50);
-                } else {
-                    const cat = item.category || '其他';
-                    const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
-                    const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
-                    const bg = colors[cat] || '#f3f4f6';
-                    const tc = textColors[cat] || '#4b5563';
-                    const gcalUrl = buildGoogleCalendarUrl(item);
-                    div.innerHTML = `
-                        <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
-                        <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
-                        <span class="date">${escapeHtml(item.date || '—')}</span>
-                        <span class="time">${escapeHtml(item.time || '—')}</span>
-                        <button class="cal-btn" data-url="${escapeHtml(gcalUrl)}" title="加入 Google 日曆">📅</button>
-                        <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
-                        <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
-                    `;
-                    div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
-                    div.querySelector('.edit-btn').addEventListener('click', function() {
-                        const id = Number(this.dataset.id);
-                        editingId = id;
-                        render();
-                    });
-                    div.querySelector('.cal-btn').addEventListener('click', function() {
-                        const url = this.dataset.url;
-                        // 用手機時直接跳去 App，唔會開新分頁
-                        window.location.href = url;
-                    });
-                }
-                todoItems.appendChild(div);
-            }
+    if (editingId === item.id) {
+        let catOptions = '';
+        const allCats = [...categories];
+        const currentCat = item.category || '其他';
+        if (!allCats.includes(currentCat)) allCats.push(currentCat);
+        allCats.forEach(c => {
+            const selected = c === currentCat ? 'selected' : '';
+            const isDeleted = !categories.includes(c) && c === currentCat;
+            const label = isDeleted ? `⚠️ ${c} (已刪除)` : c;
+            catOptions += `<option value="${escapeHtml(c)}" ${selected} ${isDeleted ? 'style="color:#94a3b8;"' : ''}>${escapeHtml(label)}</option>`;
+        });
+        div.innerHTML = `
+            <input class="edit-input" id="edit-summary-${item.id}" value="${escapeHtml(item.summary)}" />
+            <select class="edit-select" id="edit-cat-${item.id}">${catOptions}</select>
+            <input class="edit-date" id="edit-date-${item.id}" type="date" value="${item.date || ''}" />
+            <input class="edit-time" id="edit-time-${item.id}" type="time" value="${item.time || ''}" />
+            <span></span>
+            <div class="edit-btns">
+                <button class="save-btn" data-id="${item.id}">💾 儲存</button>
+                <button class="cancel-btn" data-id="${item.id}">❌ 取消</button>
+            </div>
+            <span></span>
+        `;
+        div.querySelector('.save-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const id = Number(this.dataset.id);
+            saveEdit(id);
+        });
+        div.querySelector('.cancel-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            editingId = null;
+            render();
+        });
+        const inputs = div.querySelectorAll('input, select');
+        inputs.forEach(inp => {
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); saveEdit(item.id); }
+                else if (e.key === 'Escape') { e.preventDefault(); editingId = null; render(); }
+            });
+        });
+        setTimeout(() => {
+            const summaryInput = document.getElementById(`edit-summary-${item.id}`);
+            if (summaryInput) summaryInput.focus();
+        }, 50);
+    } else {
+        const cat = item.category || '其他';
+        const colors = { '繳費': '#eef2ff', '會議': '#d1fae5', '其他': '#f3f4f6' };
+        const textColors = { '繳費': '#4338ca', '會議': '#065f46', '其他': '#4b5563' };
+        const bg = colors[cat] || '#f3f4f6';
+        const tc = textColors[cat] || '#4b5563';
+        const gcalUrl = buildGoogleCalendarUrl(item);
+        div.innerHTML = `
+            <span class="summary">${escapeHtml(item.summary || '（無標題）')}</span>
+            <span class="category" style="background:${bg};color:${tc};">${escapeHtml(cat)}</span>
+            <span class="date">${escapeHtml(item.date || '—')}</span>
+            <span class="time">${escapeHtml(item.time || '—')}</span>
+            <button class="cal-btn" data-url="${escapeHtml(gcalUrl)}" title="加入 Google 日曆">📅</button>
+            <button class="edit-btn" data-id="${item.id}" title="編輯">✏️</button>
+            <button class="delete-btn" data-id="${item.id}" title="刪除">✕</button>
+        `;
+        div.querySelector('.delete-btn').addEventListener('click', function() { deleteTodo(Number(this.dataset.id)); });
+        div.querySelector('.edit-btn').addEventListener('click', function() {
+            const id = Number(this.dataset.id);
+            editingId = id;
+            render();
+        });
+        div.querySelector('.cal-btn').addEventListener('click', function() {
+            const url = this.dataset.url;
+            // ★ 關鍵：用 window.location.href 唔會開新分頁
+            window.location.href = url;
+        });
+    }
+    todoItems.appendChild(div);
+}
 
             function saveEdit(id) {
                 const summaryInput = document.getElementById(`edit-summary-${id}`);
