@@ -593,8 +593,8 @@
                     });
                     div.querySelector('.cal-btn').addEventListener('click', function() {
                         const url = this.dataset.url;
-                        // 用 window.open 直接打開 Google 日曆
-                        window.open(url, '_blank');
+                        // 用手機時直接跳去 App，唔會開新分頁
+                        window.location.href = url;
                     });
                 }
                 todoItems.appendChild(div);
